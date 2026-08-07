@@ -5,10 +5,13 @@ import { currentRoute, navigate, onRouteChange } from './router.js'
 import { isPlaying, openEq, setEqBand, toggle as togglePlayback } from './player.js'
 import { setState, state, subscribe } from './state.js'
 import { renderHome } from './views/home.js'
-import { renderBrowse } from './views/browse.js'
 import { refreshAlbumIfMounted, renderAlbum } from './views/album.js'
 import { renderArtist } from './views/artist.js'
 import { renderFavourites } from './views/favourites.js'
+
+// Applied before first paint, not after boot() resolves — otherwise a slow /api/me round
+// trip shows a flash of whatever the OS's light/dark preference happened to pick.
+document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark')
 
 const app = document.getElementById('app')
 
@@ -56,21 +59,37 @@ function renderGate(notAMemberEmail) {
 
 const TABS = [
   { label: 'Home', hash: '#/' },
-  { label: 'Browse', hash: '#/browse' },
   { label: 'Favourites', hash: '#/favourites' },
 ]
+
+function themeToggle() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark'
+  const btn = el('button', {
+    class: 'theme-toggle', text: current === 'dark' ? 'o' : '•',
+    onclick: () => {
+      const next = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark'
+      document.documentElement.setAttribute('data-theme', next)
+      localStorage.setItem('theme', next)
+      btn.textContent = next === 'dark' ? 'o' : '•'
+    },
+  })
+  return btn
+}
 
 function renderApp() {
   const main = el('main')
   const strip = el('div', { class: 'chassis-strip' }, [
     el('button', { class: 'wordmark', onclick: () => navigate('#/') }, [
-      el('span', { class: 'dot live' }), 'jam-listen',
+      el('span', { class: 'dot live' }),
     ]),
-    el('div', { class: 'strip-tabs' }, TABS.map((t) => el('button', {
-      'aria-current': currentTabMatches(t.hash) ? 'page' : null,
-      onclick: () => navigate(t.hash),
-      text: t.label,
-    }))),
+    el('div', { class: 'strip-right' }, [
+      el('div', { class: 'strip-tabs' }, TABS.map((t) => el('button', {
+        'aria-current': currentTabMatches(t.hash) ? 'page' : null,
+        onclick: () => navigate(t.hash),
+        text: t.label,
+      }))),
+      themeToggle(),
+    ]),
   ])
 
   let deck = renderDeck()
@@ -98,7 +117,6 @@ function renderApp() {
 function currentTabMatches(hash) {
   const r = currentRoute()
   if (hash === '#/') return r.name === 'home'
-  if (hash === '#/browse') return r.name === 'browse'
   if (hash === '#/favourites') return r.name === 'favourites'
   return false
 }
@@ -116,8 +134,7 @@ function renderRoute(main, isStateUpdate = false) {
     return
   }
   lastRouteKey = key
-  if (r.name === 'home') renderHome(main)
-  else if (r.name === 'browse') renderBrowse(main, r.params)
+  if (r.name === 'home') renderHome(main, r.params)
   else if (r.name === 'album') renderAlbum(main, r.dir)
   else if (r.name === 'artist') renderArtist(main, r.artist)
   else if (r.name === 'favourites') renderFavourites(main)

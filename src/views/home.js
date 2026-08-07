@@ -1,11 +1,21 @@
+// Everything lives here now: stations, the shelf, the attic, one category rail, one
+// search box that behaves the same no matter what's selected. Used to be split across a
+// Home screen and a separate Browse screen with its own toolbar — Jason's call after
+// using the real thing: the category pills disappeared the moment you picked CDs/Attic,
+// and Browse's two <select> dropdowns weren't the same interaction as Home's search at
+// all. One persistent rail + one search box, always in the same place, fixes both.
+
 import { el, initials } from '../dom.js'
 import { navigate } from '../router.js'
 import { play } from '../player.js'
 import { state } from '../state.js'
 
-const CATEGORIES = ['All', 'Live', 'CDs', 'Attic']
-
-let activeCat = 'All'
+const CATS = [
+  { key: 'all', label: 'All' },
+  { key: 'live', label: 'Live' },
+  { key: 'cds', label: 'CDs' },
+  { key: 'attic', label: 'Attic' },
+]
 
 function stationRow(ch) {
   return el('button', { class: 'thumb-row', onclick: () => playChannel(ch) }, [
@@ -16,7 +26,7 @@ function stationRow(ch) {
       el('div', { class: 't', text: ch.name }),
       el('div', { class: 's', text: ch.private ? 'private' : 'live' }),
     ]),
-    el('div', { class: 'live' }, [el('i'), 'ON AIR']),
+    el('div', { class: 'live', text: 'ON AIR' }),
   ])
 }
 
@@ -27,50 +37,92 @@ function playChannel(ch) {
   })
 }
 
-export function renderHome(container) {
+function albumRow(al, tag) {
+  return el('button', {
+    class: 'thumb-row',
+    onclick: () => navigate(`#/album/${encodeURIComponent(al.dir)}`),
+  }, [
+    al.cover_url
+      ? el('img', { class: 'art', src: al.cover_url, alt: '' })
+      : el('div', { class: 'art', text: initials(al.album) }),
+    el('div', { class: 'meta' }, [
+      el('div', { class: 't', text: al.album }),
+      el('div', { class: 's', text: al.artist + (tag ? ` · ${tag}` : '') }),
+    ]),
+    el('div', { class: 'chev' }),
+  ])
+}
+
+function matches(text, q) {
+  return (text || '').toLowerCase().includes(q)
+}
+
+function sortAlbums(albums) {
+  return albums.slice().sort((a, b) =>
+    (a.artist || '').localeCompare(b.artist || '') || (a.album || '').localeCompare(b.album || ''))
+}
+
+export function renderHome(container, params) {
+  const cat = params.get('cat') || 'all'
+  const q = (params.get('q') || '').trim().toLowerCase()
+
   const wrap = el('div')
 
-  const rail = el('div', { class: 'cat-rail' },
-    CATEGORIES.map((c) => el('button', {
-      class: 'cat-pill', 'aria-pressed': String(c === activeCat),
-      onclick: () => {
-        if (c === 'CDs') return navigate('#/browse?src=library')
-        if (c === 'Attic') return navigate('#/browse?src=attic')
-        activeCat = c
-        renderHome(container)
-      },
-    }, c)))
-  wrap.appendChild(rail)
+  wrap.appendChild(el('div', { class: 'cat-rail' }, CATS.map((c) => el('button', {
+    class: 'cat-pill', 'aria-pressed': String(c.key === cat),
+    onclick: () => setParam('cat', c.key === 'all' ? null : c.key),
+  }, c.label))))
 
-  wrap.appendChild(el('div', { class: 'section-title', text: 'Browse' }))
-  wrap.appendChild(el('div', { class: 'thumb-list' }, [
-    el('button', { class: 'thumb-row', onclick: () => navigate('#/browse?src=library') }, [
-      el('div', { class: 'art', text: 'CD' }),
-      el('div', { class: 'meta' }, [
-        el('div', { class: 't', text: 'The Shelf' }),
-        el('div', { class: 's', text: 'On demand · ripped CDs' }),
-      ]),
-      el('div', { class: 'chev', text: '›' }),
-    ]),
-    el('button', { class: 'thumb-row', onclick: () => navigate('#/browse?src=attic') }, [
-      el('div', { class: 'art', text: 'AT' }),
-      el('div', { class: 'meta' }, [
-        el('div', { class: 't', text: 'The Attic' }),
-        el('div', { class: 's', text: 'On demand · the vault' }),
-      ]),
-      el('div', { class: 'chev', text: '›' }),
-    ]),
-  ]))
+  const search = el('input', {
+    type: 'search', placeholder: '> search', value: params.get('q') || '',
+  })
+  search.addEventListener('input', () => setParam('q', search.value || null))
+  wrap.appendChild(el('div', { class: 'toolbar' }, [search]))
 
-  if (activeCat !== 'CDs' && activeCat !== 'Attic') {
-    wrap.appendChild(el('div', { class: 'section-title', text: 'Stations' }))
-    const chans = state.channels || []
-    wrap.appendChild(
-      chans.length
-        ? el('div', { class: 'thumb-list' }, chans.map(stationRow))
-        : el('div', { class: 'empty', text: 'No stations yet.' })
-    )
+  const stations = state.channels || []
+  const cds = sortAlbums(state.libraryAlbums || [])
+  const attic = sortAlbums(state.atticAlbums || [])
+
+  let sections = []
+
+  if (cat === 'live') {
+    sections.push(['Stations', stations.filter((c) => matches(c.name, q)).map(stationRow)])
+  } else if (cat === 'cds') {
+    sections.push(['The Shelf', cds.filter((a) => matches(a.album, q) || matches(a.artist, q))
+      .map((a) => albumRow(a))])
+  } else if (cat === 'attic') {
+    sections.push(['The Attic', attic.filter((a) => matches(a.album, q) || matches(a.artist, q))
+      .map((a) => albumRow(a))])
+  } else if (q) {
+    // "All" + a query searches everything at once — that's the whole point of one search.
+    sections = [
+      ['Stations', stations.filter((c) => matches(c.name, q)).map(stationRow)],
+      ['The Shelf', cds.filter((a) => matches(a.album, q) || matches(a.artist, q)).map((a) => albumRow(a, 'cds'))],
+      ['The Attic', attic.filter((a) => matches(a.album, q) || matches(a.artist, q)).map((a) => albumRow(a, 'attic'))],
+    ]
+  } else {
+    // "All", no query: the quick-access default — live stations only, catalogs are too
+    // big to dump unfiltered (the attic alone can run well past a thousand albums).
+    sections.push(['Stations', stations.map(stationRow)])
+  }
+
+  const any = sections.some(([, rows]) => rows.length)
+  if (!any) {
+    wrap.appendChild(el('div', { class: 'empty', text: 'nothing matches' }))
+  } else {
+    for (const [title, rows] of sections) {
+      if (!rows.length) continue
+      wrap.appendChild(el('div', { class: 'section-title', text: title }))
+      wrap.appendChild(el('div', { class: 'thumb-list' }, rows))
+    }
   }
 
   container.replaceChildren(wrap)
+}
+
+function setParam(key, value) {
+  const p = new URLSearchParams(location.hash.split('?')[1] || '')
+  if (value) p.set(key, value); else p.delete(key)
+  const qs = p.toString()
+  navigate(qs ? `#/?${qs}` : '#/')
 }

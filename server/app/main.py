@@ -19,6 +19,17 @@ async def auth_signin():
     return RedirectResponse(keyring_client.signin_url())
 
 
+@app.get("/stations/{path:path}")
+async def proxy_station_art(path: str):
+    """Channel art (index.html calls this /stations/<slug>.jpg). Public on the brain —
+    no session needed, same here."""
+    import httpx
+    client = httpx.AsyncClient(timeout=10)
+    req = client.build_request("GET", f"{config.BRAIN_URL}/stations/{path}")
+    upstream = await client.send(req, stream=True)
+    return _stream_response(upstream, client)
+
+
 @app.get("/api/me")
 async def api_me(request: Request):
     """Anonymous is a normal answer, not an error — mirrors the brain's own /api/me. A
