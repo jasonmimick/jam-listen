@@ -171,19 +171,21 @@ function toggleEqPanel() {
 
 function eqBand(freq, index) {
   const label = freq >= 1000 ? `${freq / 1000}K` : String(freq)
-  const dbLabel = el('span', { class: 'db mono', text: '0' })
+  const dbLabel = el('span', { class: 'db mono', text: '0dB' })
+  const fill = el('div', { class: 'fill', style: 'height:50%' })
   const input = el('input', {
     type: 'range', min: '-12', max: '12', step: '1', value: '0',
     oninput: (e) => {
       const v = Number(e.target.value)
       setEqBand(index, v)
-      dbLabel.textContent = (v > 0 ? '+' : '') + v
+      dbLabel.textContent = (v > 0 ? '+' : '') + v + 'dB'
+      fill.style.height = `${((v + 12) / 24) * 100}%`
     },
   })
   return el('div', { class: 'eq-band' }, [
-    el('div', { class: 'eq-fader-wrap' }, [input]),
+    el('div', { class: 'eq-fader-wrap' }, [fill, input]),
     dbLabel,
-    el('label', { text: label }),
+    el('label', { 'data-hz': label }),
   ])
 }
 

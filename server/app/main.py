@@ -127,6 +127,26 @@ async def api_fav_remove(request: Request):
 
 # ---------------------------------------------------------------- audio + art passthrough
 
+@app.get("/api/attic/cover")
+async def proxy_attic_cover(request: Request, artist: str, album: str):
+    """Attic album art. Unlike library covers (plain files under /music, proxied below),
+    the brain resolves these lazily per-request and needs the query params forwarded,
+    not just a path — so it gets its own route rather than falling under /music."""
+    email = await _email(request)
+    if not email:
+        raise HTTPException(401, "sign in required")
+    token = await brain_client.brain_cookie_for(email)
+    if not token:
+        raise HTTPException(403, "not an approved jam-station member")
+    import httpx
+    client = httpx.AsyncClient(timeout=15)
+    req = client.build_request("GET", f"{config.BRAIN_URL}/api/attic/cover",
+                                params={"artist": artist, "album": album},
+                                cookies={config.BRAIN_SESSION_COOKIE: token})
+    upstream = await client.send(req, stream=True)
+    return _stream_response(upstream, client)
+
+
 @app.get("/music/{path:path}")
 async def proxy_music(path: str, request: Request):
     """Stream a track through us so the browser only ever talks to jam-listen — the brain's

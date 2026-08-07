@@ -28,37 +28,44 @@ works.** Everything else — browsing, favourites, EQ — is real but secondary 
 
 ## Visual direction
 
-A receiver front panel, not another dark-mode dashboard. jam-station's other clients
-already own the broadcast-marquee look (signage yellow, ON AIR). jam-listen is the
-always-works listening companion — the thing that should feel like reliable hardware.
-LED peak meters, a monospace digital readout, a transport deck instead of a floating
-player bar.
+**v2 (current), 2026-08-07.** A terminal, not a device panel. v1 (below, for the
+record) was a receiver-front-panel look — rounded chassis cards, LED gradients,
+padded tiles. Jason used the real, deployed app and rejected it outright: "UX stinks,
+I do not like at all... I want minimalist, like terminal — clean design — not round
+corners and padding everything." That's not a tweak, it's a different visual world:
 
-**Color** (dark, default): chassis `#1A1918`, panel `#232120`, hairline `#38352F`,
-text `#EDE7DD`, text-dim `#8C8579`, LED green `#8FBF6B` / amber `#E8A33D` (also the
-accent) / red `#E2543F`. Light theme swaps to a cream/paper chassis (`#F0EAD9`) with the
-same LED hues, deepened slightly for contrast.
+- **Zero border-radius, anywhere** (`* { border-radius: 0 !important }`) — no rounded
+  cards, buttons, or thumbnails.
+- **No panel/card backgrounds or shadows.** Hierarchy comes from 1px hairline borders
+  (`--line` / `--line-2`) between rows, not background color blocks.
+- **Monospace everywhere**, not just numbers — the whole UI reads like a terminal, not
+  just its digit columns. Still no custom webfont (`ui-monospace`/SF Mono/Menlo).
+- **Minimal padding** — tight row heights (~7px vertical), no generous card interiors.
+- **Terminal-native punctuation as UI chrome**: `[ Home ]` tab brackets, `# Section`
+  headers, `~ Artist` prefixes, `cd ..` for back, `> ` before empty-state text and the
+  sign-in button. Cheap, on-theme structure instead of icons.
+- **Color** (dark, default): background `#0A0A0A`, hairlines `#2A2A2A`/`#1A1A1A`, text
+  `#D4D0C8`, dim `#6B6B6B`, accent `#FFB000` — amber, on purpose: an amber-phosphor CRT
+  terminal is as "terminal" as green-on-black, and it's a smaller jump from v1's amber
+  than a hue change would've been. Light theme: paper `#FAFAF8` background, same accent
+  family darkened for contrast.
+- **EQ fader**: a flat single-color fill bar (height = gain), not the v1 LED gradient —
+  still the one place a value is visualized directly, still opt-in Web Audio only.
 
-**Type**: no custom webfont — deliberately, given the stated perf priority. A tracked
-uppercase system-sans for labels/nameplates; monospace (`ui-monospace`/SF Mono/Menlo)
-for every number — durations, track counts, dB values — so digit columns line up like a
-real readout. Distinctive through treatment, zero extra network request.
+v1, for the record (2026-08-06, approved via mockup, shipped, then rejected after real
+use): a receiver front panel — LED peak meters, a monospace digital readout, thumbnail
+rows already present then too. The mockup-first process caught the wrong thing (thumbnails
+vs. tiles) and missed the bigger one (the whole panel/card/rounded-corner language) —
+worth remembering next time a mockup gets approved: approval of screens isn't the same
+as approval of using it.
 
-**Layout**: thumbnail rows (44px art), never a tile grid — a grid reads great on a
-tablet and is slow to scan one-handed on a phone. Rows let artist/album text — the
-thing actually being scanned for — have the space instead of the artwork.
+**Layout** (unchanged from v1): thumbnail rows, never a tile grid — scans one-handed on
+a phone, artist/album text gets the space instead of artwork.
 
-**Signature element**: the graphic EQ panel's LED-segment fader bank (CSS gradient +
-range inputs). It's the one bold, loud thing; everything else stays quiet on purpose.
-
-**Live vs. on-demand**: the small pulsing dot next to the wordmark/on-air tag is a
-plain "on air" indicator, not an audio-reactive meter — a real level meter would need
-the Web Audio graph running by default, which breaks the reliability rule below. The
-reward for opening the EQ is getting a real one.
-
-Mockup (five screens + light/dark toggle) was reviewed and approved before any
-production CSS was written — see conversation history; not checked in as a separate
-artifact.
+**Live vs. on-demand**: the small blinking dot next to the wordmark is a plain "on air"
+indicator, not an audio-reactive meter — a real level meter would need the Web Audio
+graph running by default, which breaks the reliability rule below. The reward for
+opening the EQ is getting a real one.
 
 ## Architecture
 
