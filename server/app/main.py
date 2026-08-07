@@ -21,11 +21,17 @@ async def auth_signin():
 
 @app.get("/api/me")
 async def api_me(request: Request):
-    """Anonymous is a normal answer, not an error — mirrors the brain's own /api/me."""
+    """Anonymous is a normal answer, not an error — mirrors the brain's own /api/me. A
+    keyring-verified visitor who isn't an approved jam-station member is ALSO not an
+    error (same spirit) — just a different reason, so the gate can say why instead of
+    looking like sign-in silently failed."""
     email = await _email(request)
     if not email:
         return {"user": None}
-    r = await brain_client.call("GET", "/api/me", email)
+    try:
+        r = await brain_client.call("GET", "/api/me", email)
+    except LookupError:
+        return {"user": None, "reason": "not_a_member", "email": email}
     return r.json() if r.status_code == 200 else {"user": None}
 
 

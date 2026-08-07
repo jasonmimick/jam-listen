@@ -20,7 +20,7 @@ async function boot() {
     me = { user: null }
   }
   if (!me.user) {
-    renderGate()
+    renderGate(me.reason === 'not_a_member' ? me.email : null)
     return
   }
   setState({ user: me.user })
@@ -34,7 +34,18 @@ async function boot() {
   renderApp()
 }
 
-function renderGate() {
+function renderGate(notAMemberEmail) {
+  if (notAMemberEmail) {
+    app.replaceChildren(el('div', { class: 'gate' }, [
+      el('div', { class: 'mark', text: '⚠' }),
+      el('h1', { text: 'Not on the dial yet' }),
+      el('p', {
+        text: `Signed in as ${notAMemberEmail}, but that's not an approved jam-station `
+          + 'member. Ask the owner to add you, then reload.',
+      }),
+    ]))
+    return
+  }
   app.replaceChildren(el('div', { class: 'gate' }, [
     el('div', { class: 'mark', text: '♫' }),
     el('h1', { text: 'jam-listen' }),
