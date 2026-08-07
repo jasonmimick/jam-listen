@@ -28,13 +28,17 @@ async function boot() {
     return
   }
   setState({ user: me.user })
-  const [channels, libraryAlbums, atticAlbums, favouritesRes] = await Promise.all([
+  const [channels, libraryAlbums, atticAlbums, favouritesRes, genres] = await Promise.all([
     api.channels().catch(() => []),
     api.libraryAlbums().catch(() => []),
     api.atticAlbums().catch(() => []),
     api.favourites().catch(() => ({ favourites: [] })),
+    api.libraryGenres().catch(() => []),
   ])
-  setState({ channels, libraryAlbums, atticAlbums, favourites: favouritesRes.favourites || [] })
+  setState({
+    channels, libraryAlbums, atticAlbums, genres,
+    favourites: favouritesRes.favourites || [],
+  })
   renderApp()
 }
 

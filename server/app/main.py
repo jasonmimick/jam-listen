@@ -60,6 +60,7 @@ def _require_email(request: Request):
 _PROXY_GET = [
     "/api/channels",
     "/api/library/albums",
+    "/api/library/genres",
     "/api/attic/albums",
     "/api/attic/stats",
     "/api/favourites",

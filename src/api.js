@@ -21,6 +21,7 @@ export const api = {
   me: () => req('GET', '/api/me'),
   channels: () => req('GET', '/api/channels'),
   libraryAlbums: () => req('GET', '/api/library/albums'),
+  libraryGenres: () => req('GET', '/api/library/genres'),
   libraryAlbum: (dir) => req('GET', `/api/library/album?dir=${encodeURIComponent(dir)}`),
   atticAlbums: () => req('GET', '/api/attic/albums'),
   atticArtistMix: (name) => req('GET', `/api/attic/artist?name=${encodeURIComponent(name)}`),

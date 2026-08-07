@@ -131,6 +131,7 @@ main { flex: 1; padding: 8px 12px 100px; }
 .section-title::before { content: "# "; }
 
 .cat-rail { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
+.cat-rail.genre-rail { margin-top: 6px; }
 .cat-pill {
   flex-shrink: 0; font-size: 11px; padding: 3px 8px;
   color: var(--dim); border: 1px solid var(--line);

@@ -15,6 +15,7 @@ const CATS = [
   { key: 'live', label: 'Live' },
   { key: 'cds', label: 'CDs' },
   { key: 'attic', label: 'Attic' },
+  { key: 'artists', label: 'Artists' },
 ]
 
 function stationRow(ch) {
@@ -72,22 +73,49 @@ function sortAlbums(albums) {
     (a.artist || '').localeCompare(b.artist || '') || (a.album || '').localeCompare(b.album || ''))
 }
 
+function artistRow(name) {
+  return el('button', {
+    class: 'thumb-row', onclick: () => navigate(`#/artist/${encodeURIComponent(name)}`),
+  }, [
+    el('div', { class: 'art', text: initials(name) }),
+    el('div', { class: 'meta' }, [el('div', { class: 't', text: name })]),
+    el('div', { class: 'chev' }),
+  ])
+}
+
+function allArtists(cds, attic) {
+  const names = new Set()
+  for (const a of cds) if (a.artist) names.add(a.artist)
+  for (const a of attic) if (a.artist) names.add(a.artist)
+  return [...names].sort((a, b) => a.localeCompare(b))
+}
+
 export function renderHome(container, params) {
   const cat = params.get('cat') || 'home'
   const q = (params.get('q') || '').trim().toLowerCase()
+  const genre = params.get('genre') || ''
 
   const wrap = el('div')
 
   wrap.appendChild(el('div', { class: 'cat-rail' }, CATS.map((c) => el('button', {
     class: 'cat-pill', 'aria-pressed': String(c.key === cat),
-    onclick: () => setParam('cat', c.key === 'home' ? null : c.key),
+    onclick: () => setParams({ cat: c.key === 'home' ? null : c.key, genre: null }),
   }, c.label))))
 
   const search = el('input', {
     type: 'search', placeholder: '> search', value: params.get('q') || '',
   })
-  search.addEventListener('input', () => setParam('q', search.value || null))
+  search.addEventListener('input', () => setParams({ q: search.value || null }))
   wrap.appendChild(el('div', { class: 'toolbar' }, [search]))
+
+  // Genres are a shelf-only concept (the brain has no equivalent for the attic) — only
+  // worth showing while actually looking at the shelf.
+  if (cat === 'cds' && (state.genres || []).length) {
+    wrap.appendChild(el('div', { class: 'cat-rail genre-rail' }, state.genres.map((g) => el('button', {
+      class: 'cat-pill', 'aria-pressed': String(g.name === genre),
+      onclick: () => setParams({ genre: g.name === genre ? null : g.name }),
+    }, `${g.name} (${g.count})`))))
+  }
 
   const stations = state.channels || []
   const cds = sortAlbums(state.libraryAlbums || [])
@@ -104,9 +132,16 @@ export function renderHome(container, params) {
   if (cat === 'live') {
     sections.push(['Stations', stations.filter((c) => matches(c.name, q)).map(stationRow)])
   } else if (cat === 'cds') {
-    sections.push(['The Shelf', cap(cds.filter((a) => matches(a.album, q) || matches(a.artist, q)))])
+    const inGenre = (a) => !genre || (a.genres || []).includes(genre)
+    sections.push(['The Shelf',
+      cap(cds.filter((a) => inGenre(a) && (matches(a.album, q) || matches(a.artist, q))))])
   } else if (cat === 'attic') {
     sections.push(['The Attic', cap(attic.filter((a) => matches(a.album, q) || matches(a.artist, q)))])
+  } else if (cat === 'artists') {
+    const names = allArtists(cds, attic).filter((n) => matches(n, q))
+    const { shown, hiddenCount } = capped(names)
+    hiddenTotal += hiddenCount
+    sections.push(['Artists', shown.map(artistRow)])
   } else if (q) {
     // Home + a query searches everything at once — that's the whole point of one search.
     sections = [
@@ -144,9 +179,11 @@ export function renderHome(container, params) {
   container.replaceChildren(wrap)
 }
 
-function setParam(key, value) {
+function setParams(patch) {
   const p = new URLSearchParams(location.hash.split('?')[1] || '')
-  if (value) p.set(key, value); else p.delete(key)
+  for (const [key, value] of Object.entries(patch)) {
+    if (value) p.set(key, value); else p.delete(key)
+  }
   const qs = p.toString()
   navigate(qs ? `#/?${qs}` : '#/')
 }
