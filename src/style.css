@@ -215,6 +215,53 @@ main { flex: 1; padding: 8px 12px 100px; }
 .back-link:hover { color: var(--fg); }
 .back-link::before { content: "cd .. "; }
 
+/* ── now playing card ───────────────────────────────────────────────────── */
+
+.playing { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding-top: 6px; }
+.playing .back-link { align-self: flex-start; }
+
+.playing-art {
+  width: 200px; height: 200px; max-width: 80vw; max-height: 80vw;
+  object-fit: cover; background: var(--line-2); border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--dim); font-size: 32px;
+  margin: 8px 0 14px;
+}
+
+.playing-title { font-size: 15px; font-weight: 700; }
+.playing-link {
+  color: var(--dim); font-size: 13px; padding: 2px 0;
+}
+.playing-link:not(.static):hover { color: var(--accent); }
+.playing-link.static { cursor: default; }
+
+.playing-genres { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
+
+.playing-time {
+  display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 22px;
+  font-size: 11px; color: var(--dim);
+}
+.seekbar {
+  flex: 1; -webkit-appearance: none; appearance: none; height: 2px;
+  background: var(--line); outline: none;
+}
+.seekbar::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 10px; height: 10px; background: var(--accent); cursor: pointer;
+}
+.seekbar::-moz-range-thumb { width: 10px; height: 10px; background: var(--accent); border: 0; cursor: pointer; }
+
+.transport { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
+.transport-btn {
+  color: var(--fg); font-size: 13px; padding: 8px;
+}
+.transport-btn:disabled { color: var(--line); }
+.transport-play {
+  width: 46px; height: 46px; background: var(--accent); color: var(--accent-ink); font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+}
+.transport-stop { color: var(--dim); font-size: 11px; margin-top: 16px; }
+.transport-stop:hover { color: var(--danger); }
+
 /* ── transport deck ──────────────────────────────────────────────────────── */
 
 .deck {

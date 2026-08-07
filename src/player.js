@@ -105,6 +105,42 @@ export function isPlaying() {
   return !audio.paused
 }
 
+/** Distinct from pause: halts AND resets position, like a tape deck's stop button. Keeps
+ * nowPlaying (so the card/deck stay put, just paused at 0) rather than clearing it — the
+ * queue is still there to resume. */
+export function stop() {
+  audio.pause()
+  audio.currentTime = 0
+}
+
+/** Seconds may be negative (rewind). No-op for a live channel — it has no seekable range. */
+export function seek(deltaSeconds) {
+  if (!Number.isFinite(audio.duration)) return
+  audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + deltaSeconds))
+}
+
+export function seekTo(seconds) {
+  if (!Number.isFinite(audio.duration)) return
+  audio.currentTime = Math.max(0, Math.min(audio.duration, seconds))
+}
+
+export function queueInfo() {
+  if (!queue) return { hasPrev: false, hasNext: false }
+  return { hasPrev: queueIndex > 0, hasNext: queueIndex < queue.items.length - 1 }
+}
+
+export function skipNext() {
+  if (!queue || queueIndex >= queue.items.length - 1) return
+  queueIndex += 1
+  playFromQueue()
+}
+
+export function skipPrevious() {
+  if (!queue || queueIndex <= 0) return
+  queueIndex -= 1
+  playFromQueue()
+}
+
 // ── MediaSession: lock-screen/AirPods transport, works whether or not the EQ is open ──
 
 function updateMediaSession(item) {

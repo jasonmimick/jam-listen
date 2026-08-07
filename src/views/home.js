@@ -20,7 +20,7 @@ const CATS = [
 function stationRow(ch) {
   return el('button', { class: 'thumb-row', onclick: () => playChannel(ch) }, [
     ch.art_url
-      ? el('img', { class: 'art', src: ch.art_url, alt: '' })
+      ? el('img', { class: 'art', src: ch.art_url, alt: '', loading: 'lazy' })
       : el('div', { class: 'art', text: initials(ch.name) }),
     el('div', { class: 'meta' }, [
       el('div', { class: 't', text: ch.name }),
@@ -43,7 +43,7 @@ function albumRow(al, tag) {
     onclick: () => navigate(`#/album/${encodeURIComponent(al.dir)}`),
   }, [
     al.cover_url
-      ? el('img', { class: 'art', src: al.cover_url, alt: '' })
+      ? el('img', { class: 'art', src: al.cover_url, alt: '', loading: 'lazy' })
       : el('div', { class: 'art', text: initials(al.album) }),
     el('div', { class: 'meta' }, [
       el('div', { class: 't', text: al.album }),
@@ -51,6 +51,16 @@ function albumRow(al, tag) {
     ]),
     el('div', { class: 'chev' }),
   ])
+}
+
+// The shelf and (especially) the attic are hundreds of albums — rendering them all at
+// once used to fire hundreds of simultaneous cover-art requests and made the whole app
+// feel stuck, even a broad search term (a single common letter matches plenty). Always
+// cap what actually renders; narrowing the search is how you see more, not scrolling.
+const RESULT_CAP = 60
+
+function capped(list) {
+  return { shown: list.slice(0, RESULT_CAP), hiddenCount: Math.max(0, list.length - RESULT_CAP) }
 }
 
 function matches(text, q) {
@@ -84,21 +94,25 @@ export function renderHome(container, params) {
   const attic = sortAlbums(state.atticAlbums || [])
 
   let sections = []
+  let hiddenTotal = 0
+  const cap = (list, tag) => {
+    const { shown, hiddenCount } = capped(list)
+    hiddenTotal += hiddenCount
+    return shown.map((a) => albumRow(a, tag))
+  }
 
   if (cat === 'live') {
     sections.push(['Stations', stations.filter((c) => matches(c.name, q)).map(stationRow)])
   } else if (cat === 'cds') {
-    sections.push(['The Shelf', cds.filter((a) => matches(a.album, q) || matches(a.artist, q))
-      .map((a) => albumRow(a))])
+    sections.push(['The Shelf', cap(cds.filter((a) => matches(a.album, q) || matches(a.artist, q)))])
   } else if (cat === 'attic') {
-    sections.push(['The Attic', attic.filter((a) => matches(a.album, q) || matches(a.artist, q))
-      .map((a) => albumRow(a))])
+    sections.push(['The Attic', cap(attic.filter((a) => matches(a.album, q) || matches(a.artist, q)))])
   } else if (q) {
     // "All" + a query searches everything at once — that's the whole point of one search.
     sections = [
       ['Stations', stations.filter((c) => matches(c.name, q)).map(stationRow)],
-      ['The Shelf', cds.filter((a) => matches(a.album, q) || matches(a.artist, q)).map((a) => albumRow(a, 'cds'))],
-      ['The Attic', attic.filter((a) => matches(a.album, q) || matches(a.artist, q)).map((a) => albumRow(a, 'attic'))],
+      ['The Shelf', cap(cds.filter((a) => matches(a.album, q) || matches(a.artist, q)), 'cds')],
+      ['The Attic', cap(attic.filter((a) => matches(a.album, q) || matches(a.artist, q)), 'attic')],
     ]
   } else {
     // "All", no query: the quick-access default — live stations only, catalogs are too
@@ -114,6 +128,12 @@ export function renderHome(container, params) {
       if (!rows.length) continue
       wrap.appendChild(el('div', { class: 'section-title', text: title }))
       wrap.appendChild(el('div', { class: 'thumb-list' }, rows))
+    }
+    if (hiddenTotal) {
+      wrap.appendChild(el('div', {
+        class: 'empty',
+        text: `${hiddenTotal} more — narrow the search to see them`,
+      }))
     }
   }
 

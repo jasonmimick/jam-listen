@@ -8,6 +8,7 @@ import { renderHome } from './views/home.js'
 import { refreshAlbumIfMounted, renderAlbum } from './views/album.js'
 import { renderArtist } from './views/artist.js'
 import { renderFavourites } from './views/favourites.js'
+import { renderPlaying } from './views/playing.js'
 
 // Applied before first paint, not after boot() resolves — otherwise a slow /api/me round
 // trip shows a flash of whatever the OS's light/dark preference happened to pick.
@@ -131,6 +132,9 @@ function renderRoute(main, isStateUpdate = false) {
   // icons to move, which it can do from its own cache with no network call.
   if (isStateUpdate && key === lastRouteKey) {
     if (r.name === 'album') refreshAlbumIfMounted(main, r.dir)
+    // the Playing card has no fetch to avoid — nowPlaying itself IS its data, so a plain
+    // state update (track advanced, paused) just repaints it, same cost as leaving it stale.
+    if (r.name === 'playing') renderPlaying(main)
     return
   }
   lastRouteKey = key
@@ -138,18 +142,19 @@ function renderRoute(main, isStateUpdate = false) {
   else if (r.name === 'album') renderAlbum(main, r.dir)
   else if (r.name === 'artist') renderArtist(main, r.artist)
   else if (r.name === 'favourites') renderFavourites(main)
+  else if (r.name === 'playing') renderPlaying(main)
 }
 
 function renderDeck() {
   const np = state.nowPlaying
   if (!np) return el('div')
 
-  const goToAlbum = () => np.dir && navigate(`#/album/${encodeURIComponent(np.dir)}`)
+  const openCard = () => navigate('#/playing')
   return el('div', { class: 'deck' }, [
     np.art
-      ? el('img', { class: 'art', src: np.art, alt: '', onclick: goToAlbum })
-      : el('div', { class: 'art', text: initials(np.album || np.channel || np.title), onclick: goToAlbum }),
-    el('div', { class: 'meta', onclick: goToAlbum }, [
+      ? el('img', { class: 'art', src: np.art, alt: '', onclick: openCard })
+      : el('div', { class: 'art', text: initials(np.album || np.channel || np.title), onclick: openCard }),
+    el('div', { class: 'meta', onclick: openCard }, [
       el('div', { class: 't', text: np.title || np.channel || 'jam-listen' }),
       el('div', {
         class: 's',

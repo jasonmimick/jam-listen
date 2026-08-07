@@ -203,8 +203,15 @@ def _stream_response(upstream, client):
         await upstream.aclose()
         await client.aclose()
 
+    # cache-control/etag/last-modified matter a lot here: cover art is served with
+    # Cache-Control: public, max-age=86400 by the brain (brain/app/main.py's cover
+    # routes) — dropping those headers meant the browser re-fetched every image on every
+    # view instead of caching, which is most of why a catalog with hundreds of covers felt
+    # slow.
     headers = {k: v for k, v in upstream.headers.items()
-               if k.lower() in ("content-type", "content-length", "accept-ranges", "content-range")}
+               if k.lower() in ("content-type", "content-length", "accept-ranges",
+                                 "content-range", "cache-control", "etag", "last-modified",
+                                 "expires")}
     return StreamingResponse(body(), status_code=upstream.status_code, headers=headers,
                               background=BackgroundTask(cleanup))
 
