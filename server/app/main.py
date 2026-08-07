@@ -158,10 +158,11 @@ async def proxy_attic_cover(request: Request, artist: str, album: str):
     return _stream_response(upstream, client)
 
 
-@app.get("/music/{path:path}")
-async def proxy_music(path: str, request: Request):
-    """Stream a track through us so the browser only ever talks to jam-listen — the brain's
-    own cookie stays server-side, never exposed to the client."""
+async def _proxy_brain_track(base: str, path: str, request: Request):
+    """Stream a track (library /music or vault /attic) through us so the browser only
+    ever talks to jam-listen. Forwards Range so scrubbing/seeking actually seeks instead
+    of re-downloading the whole file — the brain's own routes honour it (FileResponse for
+    /music, an explicit passthrough for /attic)."""
     email = await _email(request)
     if not email:
         raise HTTPException(401, "sign in required")
@@ -169,11 +170,28 @@ async def proxy_music(path: str, request: Request):
     if not token:
         raise HTTPException(403, "not an approved jam-station member")
     import httpx
-    client = httpx.AsyncClient(timeout=30)
-    req = client.build_request("GET", f"{config.BRAIN_URL}/music/{path}",
-                                cookies={config.BRAIN_SESSION_COOKIE: token})
+    client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=None))
+    headers = {}
+    if request.headers.get("range"):
+        headers["range"] = request.headers["range"]
+    req = client.build_request("GET", f"{config.BRAIN_URL}{base}/{path}",
+                                cookies={config.BRAIN_SESSION_COOKIE: token}, headers=headers)
     upstream = await client.send(req, stream=True)
     return _stream_response(upstream, client)
+
+
+@app.get("/music/{path:path}")
+async def proxy_music(path: str, request: Request):
+    return await _proxy_brain_track("/music", path, request)
+
+
+@app.get("/attic/{path:path}")
+async def proxy_attic_file(path: str, request: Request):
+    """The vault's audio — a different route than /music entirely (the brain proxies it
+    one hop further, to attic-server.py on the host). Attic tracks were 404ing through
+    jam-listen because only /music was ever proxied — this was the 'next song won't
+    play' bug."""
+    return await _proxy_brain_track("/attic", path, request)
 
 
 @app.get("/stream/{slug}")
