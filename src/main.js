@@ -158,7 +158,9 @@ function renderDeck() {
       el('div', { class: 't', text: np.title || np.channel || 'jam-listen' }),
       el('div', {
         class: 's',
-        text: [np.artist, np.album].filter(Boolean).join(' — ') || np.channel || '',
+        text: state.loading
+          ? 'loading…'
+          : [np.artist, np.album].filter(Boolean).join(' — ') || np.channel || '',
       }),
     ]),
     el('div', { class: 'ctrl' }, [
@@ -166,7 +168,9 @@ function renderDeck() {
         class: 'icon eq-toggle', 'aria-pressed': String(!!document.getElementById('eq-open')),
         onclick: toggleEqPanel, text: 'EQ',
       }),
-      el('button', { class: 'play', onclick: togglePlayback, text: isPlaying() ? '❚❚' : '▶' }),
+      state.loading
+        ? el('div', { class: 'play loading', text: '⋯' })
+        : el('button', { class: 'play', onclick: togglePlayback, text: isPlaying() ? '❚❚' : '▶' }),
     ]),
   ])
 }

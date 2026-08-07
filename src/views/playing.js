@@ -31,7 +31,9 @@ export function renderPlaying(container) {
   if (isLive) timeRow.style.visibility = 'hidden'
 
   const playBtn = el('button', {
-    class: 'transport-play', onclick: togglePlayback, text: isPlaying() ? '❚❚' : '▶',
+    class: 'transport-play' + (state.loading ? ' loading' : ''),
+    onclick: togglePlayback,
+    text: state.loading ? '⋯' : (isPlaying() ? '❚❚' : '▶'),
   })
 
   const wrap = el('div', { class: 'playing' }, [
@@ -80,7 +82,8 @@ export function renderPlaying(container) {
 
   function tick() {
     if (!document.body.contains(wrap)) { clearInterval(id); return }
-    playBtn.textContent = isPlaying() ? '❚❚' : '▶'
+    playBtn.classList.toggle('loading', state.loading)
+    playBtn.textContent = state.loading ? '⋯' : (isPlaying() ? '❚❚' : '▶')
     if (!Number.isFinite(audio.duration) || isLive) return
     if (!seeking) bar.value = String((audio.currentTime / audio.duration) * 100 || 0)
     curEl.textContent = fmtDur(seeking ? (seekPreview / 100) * audio.duration : audio.currentTime)

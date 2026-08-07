@@ -53,10 +53,10 @@ function scheduleRetry() {
 audio.addEventListener('playing', () => {
   backoffMs = 1000
   clearWatchdog()
-  setState({})   // re-render play/pause state
+  setState({ loading: false })
 })
-audio.addEventListener('waiting', armWatchdog)
-audio.addEventListener('stalled', armWatchdog)
+audio.addEventListener('waiting', () => { armWatchdog(); setState({ loading: true }) })
+audio.addEventListener('stalled', () => { armWatchdog(); setState({ loading: true }) })
 audio.addEventListener('error', scheduleRetry)
 audio.addEventListener('pause', () => setState({}))
 audio.addEventListener('ended', () => {
@@ -64,7 +64,7 @@ audio.addEventListener('ended', () => {
     queueIndex += 1
     playFromQueue()
   } else {
-    setState({})
+    setState({ loading: false })
   }
 })
 
@@ -89,7 +89,9 @@ export function play(item) {
   if (!(arguments[1] && arguments[1].fromQueue)) queue = null   // a direct play breaks any queue
   backoffMs = 1000
   clearWatchdog()
-  setState({ nowPlaying: item })
+  // Set loading the instant you tap — don't wait for the browser's async 'loadstart' to
+  // fire. That gap (audio.src assignment -> loadstart) is exactly when a tap looked dead.
+  setState({ nowPlaying: item, loading: true })
   audio.src = item.url
   audio.play().catch(() => {})
   updateMediaSession(item)

@@ -259,6 +259,7 @@ main { flex: 1; padding: 8px 12px 100px; }
   width: 46px; height: 46px; background: var(--accent); color: var(--accent-ink); font-size: 16px;
   display: flex; align-items: center; justify-content: center;
 }
+.transport-play.loading { animation: pulse 1s ease-in-out infinite; }
 .transport-stop { color: var(--dim); font-size: 11px; margin-top: 16px; }
 .transport-stop:hover { color: var(--danger); }
 
@@ -285,9 +286,14 @@ main { flex: 1; padding: 8px 12px 100px; }
 .deck button.eq-toggle::before { content: "["; }
 .deck button.eq-toggle::after { content: "]"; }
 .deck button.eq-toggle[aria-pressed="true"] { color: var(--accent); }
-.deck button.play {
+.deck .play {
   width: 28px; height: 28px; background: var(--accent); color: var(--accent-ink); font-size: 11px;
   display: flex; align-items: center; justify-content: center;
+}
+.deck .play.loading { animation: pulse 1s ease-in-out infinite; cursor: default; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) {
+  .deck .play.loading { animation: none; }
 }
 
 /* ── EQ panel ────────────────────────────────────────────────────────────── */

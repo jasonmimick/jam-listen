@@ -11,7 +11,7 @@ import { play } from '../player.js'
 import { state } from '../state.js'
 
 const CATS = [
-  { key: 'all', label: 'All' },
+  { key: 'home', label: 'Home' },
   { key: 'live', label: 'Live' },
   { key: 'cds', label: 'CDs' },
   { key: 'attic', label: 'Attic' },
@@ -73,14 +73,14 @@ function sortAlbums(albums) {
 }
 
 export function renderHome(container, params) {
-  const cat = params.get('cat') || 'all'
+  const cat = params.get('cat') || 'home'
   const q = (params.get('q') || '').trim().toLowerCase()
 
   const wrap = el('div')
 
   wrap.appendChild(el('div', { class: 'cat-rail' }, CATS.map((c) => el('button', {
     class: 'cat-pill', 'aria-pressed': String(c.key === cat),
-    onclick: () => setParam('cat', c.key === 'all' ? null : c.key),
+    onclick: () => setParam('cat', c.key === 'home' ? null : c.key),
   }, c.label))))
 
   const search = el('input', {
@@ -108,15 +108,19 @@ export function renderHome(container, params) {
   } else if (cat === 'attic') {
     sections.push(['The Attic', cap(attic.filter((a) => matches(a.album, q) || matches(a.artist, q)))])
   } else if (q) {
-    // "All" + a query searches everything at once — that's the whole point of one search.
+    // Home + a query searches everything at once — that's the whole point of one search.
     sections = [
       ['Stations', stations.filter((c) => matches(c.name, q)).map(stationRow)],
       ['The Shelf', cap(cds.filter((a) => matches(a.album, q) || matches(a.artist, q)), 'cds')],
       ['The Attic', cap(attic.filter((a) => matches(a.album, q) || matches(a.artist, q)), 'attic')],
     ]
   } else {
-    // "All", no query: the quick-access default — live stations only, catalogs are too
-    // big to dump unfiltered (the attic alone can run well past a thousand albums).
+    // Home, no query: stations plus whatever's newest — a real "recent" feed off mtime,
+    // not a placeholder. Also the natural spot for an occasional promo card later, if
+    // that's ever wanted — nothing here yet, just noting where it'd go.
+    const recent = cds.concat(attic).filter((a) => a.mtime)
+      .sort((a, b) => (b.mtime || 0) - (a.mtime || 0)).slice(0, 12)
+    sections.push(['Recently added', recent.map((a) => albumRow(a, a.dir.startsWith('attic:') ? 'attic' : 'cds'))])
     sections.push(['Stations', stations.map(stationRow)])
   }
 

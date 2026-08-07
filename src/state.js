@@ -7,6 +7,8 @@ export const state = {
   user: undefined,        // undefined = not checked yet, null = signed out, {email,...} = in
   favourites: [],
   nowPlaying: null,       // {kind: 'channel'|'track', url, title, artist, album, art, channel}
+  loading: false,         // true from the moment you tap a track until audio actually starts —
+                           // without this a slow load just looked broken, not "working on it"
 }
 
 export function setState(patch) {
