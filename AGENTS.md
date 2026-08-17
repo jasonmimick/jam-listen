@@ -7,36 +7,46 @@ first for the why; this file is the how.
 ## What this is
 
 A brand-new, separate client — not a redo of jam-station's `mobile.html` funnel, not
-the native Session app. Signs in via **keyring** (identity-only), talks to
-jam-station's existing brain API through a thin backend-for-frontend, and never grows
-past what the design doc scopes: play stations, browse/play the on-demand catalog
-(library + attic), favourite, EQ, get from a song to its album/artist.
+the native Session app. **Completely open — no sign-in, no auth of any kind** (Jason's
+call, 2026-08-17: it's public at jam-listen.runslab.run and free for anyone). The UI is
+one search box over everything — live stations, the shelf (CDs), the attic — merged
+into a single result list; no category pills, no separate browse or artists index.
+The server talks to jam-station's brain as ONE fixed member (see below).
 
 ## Layout
 
 ```
 src/                  frontend — Vite + vanilla JS, no framework
-  main.js             app shell: sign-in gate, chassis strip, router wiring, deck, EQ panel
-  router.js           hash router — home / browse / album / artist / favourites
+  main.js             app shell: chassis strip, router wiring, deck, EQ panel
+  router.js           hash router — home / album / artist / favourites / playing
   player.js           the audio engine (see design doc — lazy EQ, stall recovery, queue)
   api.js               fetch wrapper for THIS app's own /api/* (never calls the brain directly)
   state.js             tiny global store — plain object + subscribers, no framework
   dom.js               el()/mount() helper — no vdom; views re-render their container wholesale
-  views/                home, browse, album, artist, favourites
+  views/                home (the one search), album, artist, favourites, playing
   style.css             the receiver-panel design system (tokens at the top)
 server/                backend-for-frontend — FastAPI
-  app/config.py         KEYRING_URL, BRAIN_URL, cookie names — all env-overridable
-  app/keyring_client.py identity-only keyring integration (Mode 1 — see keyring's AGENT-INTEGRATION-GUIDE.md)
-  app/brain_client.py   mints + caches a real jam-station session per member, proxies calls
-  app/main.py            routes: /auth/signin, /api/me, proxied brain reads/writes, /music + /stream relays
+  app/config.py         BRAIN_URL, SERVICE_EMAIL, cookie name — all env-overridable
+  app/brain_client.py   one shared brain session for SERVICE_EMAIL; all visitors ride it
+  app/main.py            routes: proxied brain reads/writes, /music /attic /stream relays
 docs/DESIGN-jam-listen.md   the design doc — visual system, architecture, non-goals
 Dockerfile              multi-stage: build the Vite frontend, then run the FastAPI server
 ```
 
+## How "free" works
+
+The brain still gates private content (the shelf, the attic, private streams) behind a
+member session — jam-station itself is untouched. So this server mints ONE session via
+`POST /api/internal/mint-session` for `SERVICE_EMAIL` (default jmimick@gmail.com — must
+be an approved jam-station member), caches it in memory, and uses it for every request
+from every visitor. Favourites are therefore one shared household list, not per-person.
+There used to be per-visitor keyring auth; it was deleted, not disabled — git history
+has it if it's ever wanted back.
+
 ## Commands
 
 ```bash
-npm install && npm run dev              # frontend, :5173, proxies /api /auth /music /stream to :8000
+npm install && npm run dev              # frontend, :5173, proxies /api /music /attic /stream to :8000
 cd server && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 cd server && .venv/bin/uvicorn app.main:app --reload --port 8000
 
@@ -61,10 +71,7 @@ internal calls regardless. Forget the header and mint-session 404s with no other
 jam-listen is a **member of jam-station's own `system.toml`**, not a standalone slab
 app — see the comment there. That's the only way it lands on jam-brain's docker network
 and can resolve it by service name (cross-system slab apps can't resolve each other by
-name). Assumes this repo is checked out as a sibling of jam-station on the deploy host.
-Deploy jam-station's system as usual (`slab -N <node> up path/to/jam-station`); redeploy
-just this app with `slab -N <node> deploy jam-listen`.
-
-Keyring registration for login-screen branding (name/logo) is a manual, one-time
-suite-admin action — not automated here. See keyring's `docs/AGENT-INTEGRATION-GUIDE.md`
-"Getting your first API key" if branding via the app-owned API ever gets wired up.
+name). Checked out as a sibling of jam-station on the deploy host (`~/business/jam-listen`
+next to `~/business/jam-station` on the mini). Push here, pull BOTH checkouts on the
+mini, then `slab -N jasons-mac-mini deploy jam-listen`. Public URL:
+https://jam-listen.runslab.run/

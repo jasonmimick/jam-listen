@@ -1,22 +1,16 @@
 import os
 
-from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import brain_client, config, keyring_client
+from . import brain_client, config
 
 app = FastAPI()
 
 
-async def _email(request: Request) -> str | None:
-    who = await keyring_client.whoami(request.cookies.get(config.KEYRING_COOKIE))
-    return who["email"] if who else None
-
-
-@app.get("/auth/signin")
-async def auth_signin():
-    return RedirectResponse(keyring_client.signin_url())
+def _misconfigured() -> HTTPException:
+    return HTTPException(502, "jam-listen's service account isn't a jam-station member")
 
 
 @app.get("/stations/{path:path}")
@@ -30,39 +24,16 @@ async def proxy_station_art(path: str):
     return _stream_response(upstream, client)
 
 
-@app.get("/api/me")
-async def api_me(request: Request):
-    """Anonymous is a normal answer, not an error — mirrors the brain's own /api/me. A
-    keyring-verified visitor who isn't an approved jam-station member is ALSO not an
-    error (same spirit) — just a different reason, so the gate can say why instead of
-    looking like sign-in silently failed."""
-    email = await _email(request)
-    if not email:
-        return {"user": None}
-    try:
-        r = await brain_client.call("GET", "/api/me", email)
-    except LookupError:
-        return {"user": None, "reason": "not_a_member", "email": email}
-    return r.json() if r.status_code == 200 else {"user": None}
-
-
-def _require_email(request: Request):
-    async def dep():
-        email = await _email(request)
-        if not email:
-            raise HTTPException(401, "sign in required")
-        return email
-    return dep
-
-
 # ---------------------------------------------------------------- proxied brain reads
 
 _PROXY_GET = [
     "/api/channels",
     "/api/library/albums",
     "/api/library/genres",
+    "/api/library/album",
     "/api/attic/albums",
     "/api/attic/stats",
+    "/api/attic/artist",
     "/api/favourites",
 ]
 
@@ -70,13 +41,10 @@ _PROXY_GET = [
 def _register_proxy_get(path: str):
     @app.get(path, name=f"proxy_get_{path}")
     async def _proxied(request: Request):
-        email = await _email(request)
-        if not email:
-            raise HTTPException(401, "sign in required")
         try:
-            r = await brain_client.call("GET", path, email, params=dict(request.query_params))
+            r = await brain_client.call("GET", path, params=dict(request.query_params))
         except LookupError:
-            raise HTTPException(403, "not an approved jam-station member")
+            raise _misconfigured()
         return JSONResponse(r.json(), status_code=r.status_code)
 
 
@@ -84,72 +52,34 @@ for _p in _PROXY_GET:
     _register_proxy_get(_p)
 
 
-@app.get("/api/library/album")
-async def api_library_album(dir: str, request: Request):
-    email = await _email(request)
-    if not email:
-        raise HTTPException(401, "sign in required")
-    try:
-        r = await brain_client.call("GET", "/api/library/album", email, params={"dir": dir})
-    except LookupError:
-        raise HTTPException(403, "not an approved jam-station member")
-    return JSONResponse(r.json(), status_code=r.status_code)
-
-
-@app.get("/api/attic/artist")
-async def api_attic_artist(request: Request, name: str = "", artist: str = ""):
-    email = await _email(request)
-    if not email:
-        raise HTTPException(401, "sign in required")
-    try:
-        r = await brain_client.call("GET", "/api/attic/artist", email,
-                                     params=dict(request.query_params))
-    except LookupError:
-        raise HTTPException(403, "not an approved jam-station member")
-    return JSONResponse(r.json(), status_code=r.status_code)
-
-
 # ---------------------------------------------------------------- favourites (writes)
+# One shared household list now — favourites belong to the service account.
 
-@app.post("/api/favourites/add")
-async def api_fav_add(request: Request):
-    email = await _email(request)
-    if not email:
-        raise HTTPException(401, "sign in required")
-    body = await request.json()
-    try:
-        r = await brain_client.call("POST", "/api/favourites/add", email, json=body)
-    except LookupError:
-        raise HTTPException(403, "not an approved jam-station member")
-    return JSONResponse(r.json(), status_code=r.status_code)
+def _register_proxy_post(path: str):
+    @app.post(path, name=f"proxy_post_{path}")
+    async def _proxied(request: Request):
+        body = await request.json()
+        try:
+            r = await brain_client.call("POST", path, json=body)
+        except LookupError:
+            raise _misconfigured()
+        return JSONResponse(r.json(), status_code=r.status_code)
 
 
-@app.post("/api/favourites/remove")
-async def api_fav_remove(request: Request):
-    email = await _email(request)
-    if not email:
-        raise HTTPException(401, "sign in required")
-    body = await request.json()
-    try:
-        r = await brain_client.call("POST", "/api/favourites/remove", email, json=body)
-    except LookupError:
-        raise HTTPException(403, "not an approved jam-station member")
-    return JSONResponse(r.json(), status_code=r.status_code)
+for _p in ["/api/favourites/add", "/api/favourites/remove"]:
+    _register_proxy_post(_p)
 
 
 # ---------------------------------------------------------------- audio + art passthrough
 
 @app.get("/api/attic/cover")
-async def proxy_attic_cover(request: Request, artist: str, album: str):
+async def proxy_attic_cover(artist: str, album: str):
     """Attic album art. Unlike library covers (plain files under /music, proxied below),
     the brain resolves these lazily per-request and needs the query params forwarded,
     not just a path — so it gets its own route rather than falling under /music."""
-    email = await _email(request)
-    if not email:
-        raise HTTPException(401, "sign in required")
-    token = await brain_client.brain_cookie_for(email)
+    token = await brain_client.cookie()
     if not token:
-        raise HTTPException(403, "not an approved jam-station member")
+        raise _misconfigured()
     import httpx
     client = httpx.AsyncClient(timeout=15)
     req = client.build_request("GET", f"{config.BRAIN_URL}/api/attic/cover",
@@ -164,12 +94,9 @@ async def _proxy_brain_track(base: str, path: str, request: Request):
     ever talks to jam-listen. Forwards Range so scrubbing/seeking actually seeks instead
     of re-downloading the whole file — the brain's own routes honour it (FileResponse for
     /music, an explicit passthrough for /attic)."""
-    email = await _email(request)
-    if not email:
-        raise HTTPException(401, "sign in required")
-    token = await brain_client.brain_cookie_for(email)
+    token = await brain_client.cookie()
     if not token:
-        raise HTTPException(403, "not an approved jam-station member")
+        raise _misconfigured()
     import httpx
     client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=None))
     headers = {}
@@ -189,19 +116,16 @@ async def proxy_music(path: str, request: Request):
 @app.get("/attic/{path:path}")
 async def proxy_attic_file(path: str, request: Request):
     """The vault's audio — a different route than /music entirely (the brain proxies it
-    one hop further, to attic-server.py on the host). Attic tracks were 404ing through
-    jam-listen because only /music was ever proxied — this was the 'next song won't
-    play' bug."""
+    one hop further, to attic-server.py on the host)."""
     return await _proxy_brain_track("/attic", path, request)
 
 
 @app.get("/stream/{slug}")
-async def proxy_stream(slug: str, request: Request):
-    """Live icecast relay. Private channels need the brain's cookie (it 403s without one);
-    public channels don't, but routing everything through here keeps the brain's URL out of
-    the browser either way — one less thing pointing at internal infrastructure."""
-    email = await _email(request)
-    token = await brain_client.brain_cookie_for(email) if email else None
+async def proxy_stream(slug: str):
+    """Live icecast relay. Private channels need the brain's cookie (it 403s without
+    one); public ones don't, but routing everything through here keeps the brain's URL
+    out of the browser either way."""
+    token = await brain_client.cookie()
     import httpx
     client = httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None))
     cookies = {config.BRAIN_SESSION_COOKIE: token} if token else {}

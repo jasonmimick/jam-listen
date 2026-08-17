@@ -10,56 +10,25 @@ import { renderArtist } from './views/artist.js'
 import { renderFavourites } from './views/favourites.js'
 import { renderPlaying } from './views/playing.js'
 
-// Applied before first paint, not after boot() resolves — otherwise a slow /api/me round
-// trip shows a flash of whatever the OS's light/dark preference happened to pick.
+// Applied before first paint, not after boot() resolves — otherwise slow catalog fetches
+// show a flash of whatever the OS's light/dark preference happened to pick.
 document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark')
 
 const app = document.getElementById('app')
 
 async function boot() {
-  let me
-  try {
-    me = await api.me()
-  } catch (e) {
-    me = { user: null }
-  }
-  if (!me.user) {
-    renderGate(me.reason === 'not_a_member' ? me.email : null)
-    return
-  }
-  setState({ user: me.user })
-  const [channels, libraryAlbums, atticAlbums, favouritesRes, genres] = await Promise.all([
+  // No sign-in, no gate — the app is open. Straight to the catalog.
+  const [channels, libraryAlbums, atticAlbums, favouritesRes] = await Promise.all([
     api.channels().catch(() => []),
     api.libraryAlbums().catch(() => []),
     api.atticAlbums().catch(() => []),
     api.favourites().catch(() => ({ favourites: [] })),
-    api.libraryGenres().catch(() => []),
   ])
   setState({
-    channels, libraryAlbums, atticAlbums, genres,
+    channels, libraryAlbums, atticAlbums,
     favourites: favouritesRes.favourites || [],
   })
   renderApp()
-}
-
-function renderGate(notAMemberEmail) {
-  if (notAMemberEmail) {
-    app.replaceChildren(el('div', { class: 'gate' }, [
-      el('div', { class: 'mark', text: '⚠' }),
-      el('h1', { text: 'Not on the dial yet' }),
-      el('p', {
-        text: `Signed in as ${notAMemberEmail}, but that's not an approved jam-station `
-          + 'member. Ask the owner to add you, then reload.',
-      }),
-    ]))
-    return
-  }
-  app.replaceChildren(el('div', { class: 'gate' }, [
-    el('div', { class: 'mark', text: '♫' }),
-    el('h1', { text: 'jam-listen' }),
-    el('p', { text: 'Your record collection, live and on demand. Sign in once, everywhere.' }),
-    el('button', { onclick: () => { location.href = '/auth/signin' }, text: 'Sign in' }),
-  ]))
 }
 
 const TABS = [
