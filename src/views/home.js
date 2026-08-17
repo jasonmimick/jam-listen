@@ -4,8 +4,9 @@
 // no separate browse — Jason's call: narrowing is typing, not navigating.
 
 import { el, initials } from '../dom.js'
+import { api } from '../api.js'
 import { navigate } from '../router.js'
-import { play } from '../player.js'
+import { play, playQueue } from '../player.js'
 import { state } from '../state.js'
 
 function stationRow(ch) {
@@ -21,7 +22,18 @@ function stationRow(ch) {
   ])
 }
 
-function playChannel(ch) {
+async function playChannel(ch) {
+  // Genre stations (shelf-*/vault-*) are MIX-ONLY on the brain: no icecast mount exists,
+  // ever — /stream/<slug> 404s for them by design. They play as on-demand shuffles via
+  // /api/mix, same as the station's own UI. This was why "private channels don't work":
+  // jam-listen used to stream everything.
+  if (ch.query && ch.query.genre) {
+    try {
+      const mix = await api.channelMix(ch.slug)
+      playQueue(mix.tracks, 0, { channel: ch.name, art: ch.art_url || '' })
+    } catch (e) { /* an empty section — nothing to play */ }
+    return
+  }
   play({
     kind: 'channel', url: `/stream/${ch.slug}`, title: ch.name,
     channel: ch.name, art: ch.art_url || '',
