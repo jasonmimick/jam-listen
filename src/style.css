@@ -174,6 +174,61 @@ main { flex: 1; padding: 8px 12px 100px; }
 .thumb-row .chev { color: var(--dim); font-size: 12px; flex-shrink: 0; }
 .thumb-row .chev::before { content: "\2192"; }
 
+/* ── home view switcher (guide / crates / list — live A/B) ──────────────── */
+
+.view-rail { display: flex; gap: 4px; align-items: center; margin: 0 0 10px; }
+.view-rail .lbl { color: var(--dim); font-size: 11px; margin-right: 2px; }
+
+/* ── program guide — the dial as a dense table, now-playing live ────────── */
+
+.guide-list { display: flex; flex-direction: column; border-top: 1px solid var(--line-2); }
+.guide-row {
+  display: flex; gap: 8px; align-items: baseline; width: 100%;
+  padding: 7px 2px; border-bottom: 1px solid var(--line-2); text-align: left;
+}
+.guide-row:hover, .guide-row:focus-visible { background: var(--line-2); }
+.guide-row .ch {
+  flex: 0 0 96px; color: var(--accent); font-weight: 700; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.02em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.guide-row .np {
+  flex: 1; min-width: 0; font-size: 11px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.guide-row .np::before { content: "\25B8 "; color: var(--dim); }
+.guide-row .np.dim { color: var(--dim); }
+
+/* ── crates — station dial strip + album cover grid ─────────────────────── */
+
+.dial-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
+.dial-tile { flex: 0 0 84px; text-align: left; }
+.dial-tile .cv {
+  width: 84px; height: 84px; object-fit: cover; border: 1px solid var(--line);
+  background: var(--line-2); color: var(--dim);
+  display: flex; align-items: center; justify-content: center; font-size: 12px;
+}
+.dial-tile .nm {
+  margin-top: 3px; font-size: 10px; text-transform: uppercase;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.cover-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cover-tile { text-align: left; min-width: 0; }
+.cover-tile .cv {
+  width: 100%; aspect-ratio: 1; object-fit: cover; border: 1px solid var(--line);
+  background: var(--line-2); color: var(--dim);
+  display: flex; align-items: center; justify-content: center; font-size: 12px;
+}
+.cover-tile .t {
+  margin-top: 3px; font-size: 10px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cover-tile .s {
+  font-size: 10px; color: var(--dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 .row-list { display: flex; flex-direction: column; border-top: 1px solid var(--line-2); }
 .row {
   display: flex; align-items: center; gap: 10px; padding: 6px 2px;

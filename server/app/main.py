@@ -35,6 +35,7 @@ _PROXY_GET = [
     "/api/attic/stats",
     "/api/attic/artist",
     "/api/mix",
+    "/api/dial",
     "/api/favourites",
 ]
 

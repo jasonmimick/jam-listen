@@ -19,6 +19,7 @@ export const api = {
   atticAlbums: () => req('GET', '/api/attic/albums'),
   atticArtistMix: (name) => req('GET', `/api/attic/artist?name=${encodeURIComponent(name)}`),
   channelMix: (slug) => req('GET', `/api/mix?slug=${encodeURIComponent(slug)}&count=40`),
+  dial: () => req('GET', '/api/dial'),
   favourites: () => req('GET', '/api/favourites'),
   favouriteAdd: (fav) => req('POST', '/api/favourites/add', fav),
   favouriteRemove: (url) => req('POST', '/api/favourites/remove', { url }),
