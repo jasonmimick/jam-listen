@@ -13,6 +13,12 @@ one search box over everything — live stations, the shelf (CDs), the attic —
 into a single result list; no category pills, no separate browse or artists index.
 The server talks to jam-station's brain as ONE fixed member (see below).
 
+Home has THREE switchable layouts (a live A/B, `view:` rail, localStorage): **guide**
+(default — program-guide table with per-station now-playing via `/api/dial`, polled
+every 30s while mounted), **crates** (station art strip + album cover grid), **list**
+(the original flat rows, kept as the control). Search behaves identically in all
+three. Once a winner is clear, delete the losers — don't let three layouts calcify.
+
 ## Layout
 
 ```
