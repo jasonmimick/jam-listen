@@ -42,8 +42,18 @@ function reconnect() {
   }
 }
 
+let consecutiveErrors = 0
+
 function scheduleRetry() {
   clearWatchdog()
+  // A transient drop deserves persistence; a URL that hard-errors every single try is
+  // just dead (a stale client asking for a channel that no longer exists was exactly
+  // this) — stop pretending to load and give the deck its play button back.
+  consecutiveErrors += 1
+  if (consecutiveErrors >= 5) {
+    setState({ loading: false })
+    return
+  }
   watchdog = setTimeout(() => {
     reconnect()
     backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF)
@@ -52,6 +62,7 @@ function scheduleRetry() {
 
 audio.addEventListener('playing', () => {
   backoffMs = 1000
+  consecutiveErrors = 0
   clearWatchdog()
   setState({ loading: false })
 })
@@ -88,6 +99,7 @@ export function play(item) {
   // item: {kind: 'channel'|'track', url, title, artist, album, art, channel}
   if (!(arguments[1] && arguments[1].fromQueue)) queue = null   // a direct play breaks any queue
   backoffMs = 1000
+  consecutiveErrors = 0
   clearWatchdog()
   // Set loading the instant you tap — don't wait for the browser's async 'loadstart' to
   // fire. That gap (audio.src assignment -> loadstart) is exactly when a tap looked dead.

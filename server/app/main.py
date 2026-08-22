@@ -1,7 +1,7 @@
 import os
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import brain_client, config
@@ -165,4 +165,14 @@ def _stream_response(upstream, client):
 
 _DIST = os.path.join(os.path.dirname(__file__), "..", "..", "dist")
 if os.path.isdir(_DIST):
+    # index.html must ALWAYS revalidate. Without Cache-Control, Safari's heuristic
+    # caching held onto stale copies for days — old bundles kept showing dead channels
+    # as ON AIR ("live stations not playing", twice). The JS/CSS under /assets/ is
+    # content-hashed, so a fresh index.html is all it takes to pull the current app.
+    @app.get("/")
+    @app.get("/index.html")
+    async def index():
+        return FileResponse(os.path.join(_DIST, "index.html"),
+                            headers={"Cache-Control": "no-cache"})
+
     app.mount("/", StaticFiles(directory=_DIST, html=True), name="frontend")
