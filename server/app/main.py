@@ -1,4 +1,5 @@
 import os
+import re
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
@@ -163,6 +164,17 @@ def _stream_response(upstream, client):
 
 # ---------------------------------------------------------------- static frontend
 
+# The slim player (docs/DESIGN-iphone4.md): one ES5 file for old iPhones, which render the
+# Vite bundle blank. No build step — it ships with server/app, so it works without dist/.
+_SLIM = os.path.join(os.path.dirname(__file__), "static", "iphone4.html")
+_OLD_IOS = re.compile(r"(iPhone|iPod).* OS [4-9]_")   # iOS 4–9: no ES2015, no modern CSS
+
+
+@app.get("/iphone4")
+async def iphone4():
+    return FileResponse(_SLIM, headers={"Cache-Control": "no-cache"})
+
+
 _DIST = os.path.join(os.path.dirname(__file__), "..", "..", "dist")
 if os.path.isdir(_DIST):
     # index.html must ALWAYS revalidate. Without Cache-Control, Safari's heuristic
@@ -171,8 +183,9 @@ if os.path.isdir(_DIST):
     # content-hashed, so a fresh index.html is all it takes to pull the current app.
     @app.get("/")
     @app.get("/index.html")
-    async def index():
-        return FileResponse(os.path.join(_DIST, "index.html"),
-                            headers={"Cache-Control": "no-cache"})
+    async def index(request: Request):
+        page = _SLIM if _OLD_IOS.search(request.headers.get("user-agent", "")) else \
+            os.path.join(_DIST, "index.html")
+        return FileResponse(page, headers={"Cache-Control": "no-cache"})
 
     app.mount("/", StaticFiles(directory=_DIST, html=True), name="frontend")

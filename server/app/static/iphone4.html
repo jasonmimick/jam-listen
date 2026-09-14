@@ -1,0 +1,370 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-title" content="jam">
+<title>jam</title>
+<!-- The slim player for old iPhones (iOS 7). ES5 + old CSS ONLY: no let/const/arrows/
+     template strings/fetch/Promise, no CSS variables, no unprefixed flexbox.
+     See docs/DESIGN-iphone4.md. -->
+<style>
+* { margin: 0; padding: 0; -webkit-box-sizing: border-box; box-sizing: border-box; }
+html, body { background: #0a0a0a; color: #d4d0c8; -webkit-text-size-adjust: 100%;
+  font: 14px/1.35 Menlo, Courier, monospace; }
+body { padding-bottom: 76px; }
+#top { padding: 8px 10px 0; border-bottom: 1px solid #2a2a2a; }
+#brand { color: #6b6b6b; font-size: 11px; letter-spacing: 1px; }
+#tabs { display: table; table-layout: fixed; width: 100%; margin-top: 4px; }
+.tab { display: table-cell; text-align: center; padding: 10px 0 8px; color: #6b6b6b;
+  cursor: pointer; border-bottom: 2px solid transparent; letter-spacing: 1px; }
+.tab.on { color: #ffb000; border-bottom-color: #ffb000; }
+#q { display: none; width: 100%; margin: 8px 0; padding: 8px; background: #000;
+  border: 1px solid #2a2a2a; border-radius: 0; color: #d4d0c8; font: inherit;
+  -webkit-appearance: none; }
+.row { padding: 10px; border-bottom: 1px solid #1a1a1a; cursor: pointer; }
+.t, .s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s { color: #6b6b6b; font-size: 12px; }
+.row.on .t { color: #ffb000; }
+.h { padding: 14px 10px 4px; color: #6b6b6b; font-size: 11px; letter-spacing: 1px; }
+.msg { padding: 20px 10px; color: #6b6b6b; }
+.back { color: #ffb000; }
+.alb { padding: 10px; overflow: hidden; border-bottom: 1px solid #2a2a2a; }
+.alb img { float: left; width: 96px; height: 96px; margin-right: 10px; background: #1a1a1a; }
+.act { display: inline-block; margin: 10px 6px 0 0; padding: 7px 10px; cursor: pointer;
+  border: 1px solid #ffb000; color: #ffb000; }
+#bar { position: fixed; left: 0; right: 0; bottom: 0; height: 68px; width: 100%;
+  display: table; table-layout: fixed; background: #111; border-top: 1px solid #2a2a2a; }
+#np { display: table-cell; vertical-align: middle; padding: 0 6px 0 10px; }
+.btn { display: table-cell; width: 50px; text-align: center; vertical-align: middle;
+  color: #ffb000; font-size: 16px; font-weight: bold; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="top">
+  <div id="brand">JAM-LISTEN / SLIM</div>
+  <div id="tabs">
+    <div class="tab" data-tab="live">LIVE</div>
+    <div class="tab" data-tab="cds">CDS</div>
+    <div class="tab" data-tab="attic">ATTIC</div>
+  </div>
+  <input id="q" type="search" placeholder="search artist or album" autocorrect="off" autocapitalize="off">
+</div>
+<div id="main"></div>
+<div id="bar">
+  <div id="np"><div class="t" id="npT">nothing playing</div><div class="s" id="npS">&nbsp;</div></div>
+  <div class="btn" id="bPrev">|&lt;</div>
+  <div class="btn" id="bPlay">&gt;</div>
+  <div class="btn" id="bNext">&gt;|</div>
+</div>
+<audio id="audio" preload="none"></audio>
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function save(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  var audio = $('audio');
+  var S = {
+    tab: load('slimTab') || 'live',
+    q: '',
+    channels: null,          // null = not loaded, false = failed
+    dial: {},
+    lists: { cds: null, attic: null },
+    album: null,             // { meta, data, scroll }
+    rows: [],                // what each data-i in #main means
+    queue: [], qi: -1,       // on-demand tracks
+    live: null,              // or the live channel playing
+    errors: 0, retry: 0
+  };
+  if (S.tab !== 'live' && S.tab !== 'cds' && S.tab !== 'attic') S.tab = 'live';
+
+  // ------------------------------------------------------------ network
+
+  function get(url, cb) {
+    var x = new XMLHttpRequest();
+    x.open('GET', url, true);
+    x.onreadystatechange = function () {
+      if (x.readyState !== 4) return;
+      var d = null;
+      if (x.status === 200) { try { d = JSON.parse(x.responseText); } catch (e) {} }
+      cb(d);
+    };
+    x.send();
+  }
+
+  // Synchronous on purpose: iOS only lets play() start inside the tap, and an async
+  // callback is outside it. Used only for mix channels.
+  function getSync(url) {
+    var x = new XMLHttpRequest();
+    x.open('GET', url, false);
+    try { x.send(); } catch (e) { return null; }
+    if (x.status !== 200) return null;
+    try { return JSON.parse(x.responseText); } catch (e) { return null; }
+  }
+
+  var loading = {};
+  function fetchOnce(key, url, done) {
+    if (loading[key]) return;
+    loading[key] = true;
+    get(url, function (d) { loading[key] = false; done(d); render(); });
+  }
+
+  // ------------------------------------------------------------ views
+
+  function isMix(ch) { return !!(ch.query && ch.query.genre); }
+
+  function row(i, t, s, on) {
+    return '<div class="row' + (on ? ' on' : '') + '" data-i="' + i + '"><div class="t">' +
+      esc(t) + '</div><div class="s">' + (s ? esc(s) : '&nbsp;') + '</div></div>';
+  }
+  function add(r) { S.rows.push(r); return S.rows.length - 1; }
+  function msg(text, retry) {
+    if (retry) return '<div class="row msg" data-i="' + add({ kind: 'retry', fn: retry }) + '">' + esc(text) + '</div>';
+    return '<div class="msg">' + esc(text) + '</div>';
+  }
+
+  function liveHtml() {
+    if (S.channels === null) {
+      fetchOnce('channels', '/api/channels', function (d) { S.channels = d || false; });
+      return msg('loading stations...');
+    }
+    if (S.channels === false) return msg("couldn't load stations - tap to retry", function () { S.channels = null; });
+    var live = [], mixes = [];
+    S.channels.forEach(function (c) {
+      if (c.enabled === 0 || c.enabled === false) return;
+      (isMix(c) ? mixes : live).push(c);
+    });
+    var out = '<div class="h">ON AIR</div>';
+    live.forEach(function (c) {
+      var np = S.dial[c.slug];
+      var sub = np ? np.title + (np.artist ? ' - ' + np.artist : '') : (c.description || 'live');
+      out += row(add({ kind: 'ch', ch: c }), c.name, sub, S.live && S.live.slug === c.slug);
+    });
+    if (mixes.length) {
+      out += '<div class="h">SHUFFLES</div>';
+      mixes.forEach(function (c) {
+        out += row(add({ kind: 'ch', ch: c }), c.name, c.query.genre + ' - shuffle', false);
+      });
+    }
+    return out;
+  }
+
+  function listHtml(kind) {
+    var all = S.lists[kind];
+    if (all === null) {
+      fetchOnce(kind, kind === 'cds' ? '/api/library/albums' : '/api/attic/albums', function (d) {
+        if (!d) { S.lists[kind] = false; return; }
+        d.sort(function (a, b) {
+          var x = (a.artist + ' ' + a.album).toLowerCase(), y = (b.artist + ' ' + b.album).toLowerCase();
+          return x < y ? -1 : x > y ? 1 : 0;
+        });
+        S.lists[kind] = d;
+      });
+      return msg('loading albums...');
+    }
+    if (all === false) return msg("couldn't load albums - tap to retry", function () { S.lists[kind] = null; });
+    var q = S.q.toLowerCase(), hits = [];
+    for (var i = 0; i < all.length; i++) {
+      if (!q || (all[i].artist + ' ' + all[i].album).toLowerCase().indexOf(q) >= 0) hits.push(all[i]);
+    }
+    var out = '<div class="h">' + hits.length + ' ALBUMS' + (hits.length > 200 ? ' - FIRST 200, SEARCH TO NARROW' : '') + '</div>';
+    hits.slice(0, 200).forEach(function (a) {
+      var sub = a.artist + (a.year ? ' - ' + a.year : '') + (a.tracks ? ' - ' + a.tracks + ' tracks' : '');
+      out += row(add({ kind: 'al', al: a }), a.album, sub, false);
+    });
+    return out;
+  }
+
+  function current() { return S.qi >= 0 ? S.queue[S.qi] : null; }
+
+  function albumHtml() {
+    var a = S.album.meta, d = S.album.data;
+    var out = '<div class="row back" data-i="' + add({ kind: 'back' }) + '">&lt; back</div>';
+    var cover = a.cover_url || (d && d.tracks && d.tracks[0] && d.tracks[0].cover_url);
+    out += '<div class="alb">' + (cover ? '<img src="' + esc(cover) + '" onerror="this.style.visibility=\'hidden\'">' : '') +
+      '<div class="t">' + esc(a.album) + '</div><div class="s">' + esc(a.artist) + '</div>';
+    if (d && d.tracks && d.tracks.length) {
+      out += '<div class="act" data-i="' + add({ kind: 'play', n: 0 }) + '">&gt; play</div>' +
+        '<div class="act" data-i="' + add({ kind: 'shuffle' }) + '">shuffle</div>';
+    }
+    out += '</div>';
+    if (d === null) return out + msg('loading tracks...');
+    if (!d || !d.tracks) return out + msg("couldn't load this album - tap to retry", function () { openAlbum(a); });
+    var cur = current();
+    d.tracks.forEach(function (t, n) {
+      var sub = t.artist && t.artist !== a.artist ? t.artist : '';
+      out += row(add({ kind: 'play', n: n }), (n + 1) + '. ' + (t.title || 'untitled'), sub, cur && cur.url === t.url);
+    });
+    return out;
+  }
+
+  function render() {
+    var tabs = document.querySelectorAll('.tab');
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].className = 'tab' + (tabs[i].getAttribute('data-tab') === S.tab ? ' on' : '');
+    }
+    $('q').style.display = !S.album && S.tab !== 'live' ? 'block' : 'none';
+    S.rows = [];
+    $('main').innerHTML = S.album ? albumHtml() : S.tab === 'live' ? liveHtml() : listHtml(S.tab);
+    bar();
+  }
+
+  function openAlbum(a) {
+    var y = S.album && S.album.meta === a ? S.album.scroll : window.pageYOffset;
+    S.album = { meta: a, data: null, scroll: y };
+    render();
+    window.scrollTo(0, 0);
+    get('/api/library/album?dir=' + encodeURIComponent(a.dir), function (d) {
+      if (!S.album || S.album.meta !== a) return;
+      S.album.data = d || false;
+      render();
+    });
+  }
+
+  // ------------------------------------------------------------ playback
+
+  function setSrc(url) { audio.src = url; audio.play(); }
+  function liveUrl() { return '/stream/' + encodeURIComponent(S.live.slug) + '?r=' + (+new Date()); }
+
+  function playQueue(tracks, n) {
+    S.live = null; S.queue = tracks; S.qi = n; S.errors = 0;
+    setSrc(tracks[n].url);
+    render();
+  }
+
+  function playChannel(ch) {
+    if (isMix(ch)) {
+      var mix = getSync('/api/mix?slug=' + encodeURIComponent(ch.slug) + '&count=40');
+      if (!mix || !mix.tracks || !mix.tracks.length) { $('npS').textContent = 'nothing to play on ' + ch.name; return; }
+      playQueue(mix.tracks, 0);
+      return;
+    }
+    S.queue = []; S.qi = -1; S.live = ch; S.retry = 0;
+    setSrc(liveUrl());
+    render();
+  }
+
+  function next() {
+    if (S.live || S.qi < 0 || S.qi >= S.queue.length - 1) return;
+    S.qi++;
+    setSrc(S.queue[S.qi].url);
+    render();
+  }
+
+  function prev() {
+    if (S.live || S.qi < 0) return;
+    if (audio.currentTime > 5 || S.qi === 0) { audio.currentTime = 0; return; }
+    S.qi--;
+    setSrc(S.queue[S.qi].url);
+    render();
+  }
+
+  function toggle() {
+    if (!S.live && S.qi < 0) return;
+    if (!audio.paused) { audio.pause(); return; }
+    if (S.live) { S.retry = 0; setSrc(liveUrl()); }   // resume at live, not where it paused
+    else audio.play();
+  }
+
+  function bar() {
+    var t = 'nothing playing', s = ' ', cur = current();
+    if (S.live) {
+      var np = S.dial[S.live.slug];
+      t = S.live.name;
+      s = np ? np.title + (np.artist ? ' - ' + np.artist : '') : 'live';
+    } else if (cur) {
+      t = cur.title || 'untitled';
+      s = (cur.artist ? cur.artist + ' - ' : '') + (S.qi + 1) + '/' + S.queue.length;
+    }
+    $('npT').textContent = t;
+    $('npS').textContent = s;
+    $('bPlay').textContent = (S.live || cur) && !audio.paused ? '||' : '>';
+    document.title = S.live || cur ? t : 'jam';
+  }
+
+  audio.addEventListener('playing', function () { S.errors = 0; S.retry = 0; bar(); });
+  audio.addEventListener('pause', bar);
+  audio.addEventListener('waiting', function () { $('bPlay').textContent = '..'; });
+  audio.addEventListener('ended', function () {
+    if (S.live) failed();                        // a live stream only "ends" when it drops
+    else next();
+  });
+  audio.addEventListener('error', failed);
+  function failed() {
+    if (S.live) {
+      if (S.retry >= 5) { $('npS').textContent = 'stream lost - tap > to retry'; return; }
+      S.retry++;
+      $('npS').textContent = 'reconnecting...';
+      setTimeout(function () { if (S.live) setSrc(liveUrl()); }, 3000);
+      return;
+    }
+    if (S.qi < 0) return;
+    S.errors++;                                  // e.g. a flac the phone can't decode
+    if (S.errors > 5) { $('npS').textContent = "can't play these tracks"; return; }
+    next();
+  }
+
+  // ------------------------------------------------------------ input
+
+  $('main').addEventListener('click', function (e) {
+    var el = e.target;
+    while (el && el !== this && !el.getAttribute('data-i')) el = el.parentNode;
+    if (!el || el === this) return;
+    var r = S.rows[+el.getAttribute('data-i')];
+    if (!r) return;
+    if (r.kind === 'ch') playChannel(r.ch);
+    else if (r.kind === 'al') openAlbum(r.al);
+    else if (r.kind === 'retry') { r.fn(); render(); }
+    else if (r.kind === 'back') { var y = S.album.scroll; S.album = null; render(); window.scrollTo(0, y); }
+    else if (r.kind === 'play') playQueue(S.album.data.tracks, r.n);
+    else if (r.kind === 'shuffle') {
+      var list = S.album.data.tracks.slice();
+      for (var i = list.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1)), tmp = list[i];
+        list[i] = list[j]; list[j] = tmp;
+      }
+      playQueue(list, 0);
+    }
+  });
+
+  $('tabs').addEventListener('click', function (e) {
+    var k = e.target.getAttribute('data-tab');
+    if (!k) return;
+    S.tab = k; S.album = null; S.q = ''; $('q').value = '';
+    save('slimTab', k);
+    render();
+    window.scrollTo(0, 0);
+  });
+
+  $('q').addEventListener('input', function () { S.q = this.value; render(); });
+  $('q').addEventListener('keydown', function (e) { if (e.keyCode === 13) this.blur(); });
+
+  $('bPrev').addEventListener('click', prev);
+  $('bPlay').addEventListener('click', toggle);
+  $('bNext').addEventListener('click', next);
+
+  // now-playing for the dial - only while it's on screen or a station is playing
+  function pollDial() {
+    if (S.tab !== 'live' && !S.live) return;
+    get('/api/dial', function (d) {
+      if (!d) return;
+      S.dial = d;
+      if (S.tab === 'live' && !S.album) render(); else bar();
+    });
+  }
+  setInterval(pollDial, 30000);
+  pollDial();
+
+  render();
+})();
+</script>
+</body>
+</html>

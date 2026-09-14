@@ -35,9 +35,23 @@ server/                backend-for-frontend — FastAPI
   app/config.py         BRAIN_URL, SERVICE_EMAIL, cookie name — all env-overridable
   app/brain_client.py   one shared brain session for SERVICE_EMAIL; all visitors ride it
   app/main.py            routes: proxied brain reads/writes, /music /attic /stream relays
+  app/static/iphone4.html  the SLIM player for old iPhones — one ES5 file, no build step
 docs/DESIGN-jam-listen.md   the design doc — visual system, architecture, non-goals
+docs/DESIGN-iphone4.md      the slim player: iOS 7 constraints, routing, non-goals
 Dockerfile              multi-stage: build the Vite frontend, then run the FastAPI server
 ```
+
+## The slim player (old iPhones)
+
+`server/app/static/iphone4.html` is a separate, hand-written client for iOS 4–9 Safari,
+which renders the Vite bundle blank. Served at `/iphone4`, and at `/` to any iOS ≤ 9
+user agent (`_OLD_IOS` in `server/app/main.py`); jam-station's own `/` redirects those
+phones here too. It calls the same proxied `/api/*` routes as the Vite app. **Keep it
+ES5 + old CSS** — no `let`/`const`/arrows/template strings/`fetch`/`Promise`/`new Event()`,
+no CSS variables, no unprefixed flexbox. Check before committing:
+`npx acorn@8 --ecma5 --silent <the extracted <script> body>`. Mix channels fetch with a
+synchronous XHR on purpose (iOS only starts audio inside the tap). Why and what it
+doesn't do: [`docs/DESIGN-iphone4.md`](docs/DESIGN-iphone4.md).
 
 ## How "free" works
 
