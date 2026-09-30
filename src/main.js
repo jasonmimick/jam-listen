@@ -4,7 +4,7 @@ import { api } from './api.js'
 import { currentRoute, navigate, onRouteChange } from './router.js'
 import { isPlaying, openEq, setEqBand, toggle as togglePlayback } from './player.js'
 import { setState, state, subscribe } from './state.js'
-import { renderHome } from './views/home.js'
+import { isMix, mixSource, onAir, playChannel, renderHome } from './views/home.js'
 import { refreshAlbumIfMounted, renderAlbum } from './views/album.js'
 import { renderArtist } from './views/artist.js'
 import { renderFavourites } from './views/favourites.js'
@@ -69,11 +69,22 @@ function renderApp() {
   let deck = renderDeck()
   const eqPanel = el('div', { id: 'eq-slot' })
 
-  app.replaceChildren(strip, main, eqPanel, deck)
+  let sidebar = renderSidebar()
+
+  app.replaceChildren(strip, sidebar, main, eqPanel, deck)
   renderRoute(main)
+
+  const repaintSidebar = () => {
+    const next = renderSidebar()
+    next.scrollTop = sidebar.scrollTop
+    sidebar.replaceWith(next)
+    sidebar = next
+  }
 
   onRouteChange(() => {
     renderRoute(main)
+    repaintSidebar()
+    if (focusSearchAfterRoute) { focusSearchAfterRoute = false; focusSearch() }
     const tabs = strip.querySelector('.strip-tabs')
     tabs.querySelectorAll('button').forEach((btn, i) => {
       if (currentTabMatches(TABS[i].hash)) btn.setAttribute('aria-current', 'page')
@@ -85,8 +96,79 @@ function renderApp() {
     const newDeck = renderDeck()
     deck.replaceWith(newDeck)
     deck = newDeck
+    repaintSidebar()
   })
 }
+
+// ---------------------------------------------------------------- desktop
+
+// The sidebar is always rendered and only shown by the desktop media query (style.css) —
+// on a phone it's display:none, so the mobile layout is untouched. It puts every station
+// and mix one click away from any screen, which the phone gets from Home instead.
+function renderSidebar() {
+  const chans = onAir(state.channels || [])
+  const np = state.nowPlaying
+  const r = currentRoute()
+  const nav = (label, hash, name) => el('button', {
+    class: 'side-item', 'aria-current': r.name === name ? 'page' : null,
+    onclick: () => navigate(hash), text: label,
+  })
+  const station = (ch, label) => el('button', {
+    class: 'side-item' + (np && np.channel === ch.name ? ' on' : ''),
+    onclick: () => playChannel(ch), text: label,
+  })
+  const stations = chans.filter((c) => !isMix(c))
+  const mixes = chans.filter(isMix)
+  return el('aside', { class: 'sidebar' }, [
+    nav('Home', '#/', 'home'),
+    nav('Favourites', '#/favourites', 'favourites'),
+    np ? nav('Now playing', '#/playing', 'playing') : null,
+    el('div', { class: 'section-title', text: 'On air' }),
+    ...stations.map((c) => station(c, c.name)),
+    mixes.length ? el('div', { class: 'section-title', text: 'Mixes' }) : null,
+    ...mixes.map((c) => station(c, `${mixSource(c)} · ${c.query.genre}`)),
+    el('div', { class: 'side-keys', text: 'space play/pause · / search · j k move · enter play' }),
+  ])
+}
+
+// Keyboard shortcuts. Harmless on a phone (no keyboard), useful anywhere there is one.
+const NAV_ITEMS = 'main .guide-row, main .thumb-row, main .row, main .cover-tile, main .dial-tile'
+let focusSearchAfterRoute = false
+
+function focusSearch() {
+  const input = document.querySelector('main input[type="search"]')
+  if (input) { input.focus(); input.select(); return }
+  focusSearchAfterRoute = true
+  navigate('#/')
+}
+
+function moveFocus(step) {
+  const items = [...document.querySelectorAll(NAV_ITEMS)]
+  if (!items.length) return
+  const i = items.indexOf(document.activeElement)
+  const next = items[i < 0 ? 0 : Math.max(0, Math.min(items.length - 1, i + step))]
+  next.focus()
+  next.scrollIntoView({ block: 'nearest' })
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return
+  if (e.target.matches('input, textarea, select')) {
+    if (e.key === 'Escape') e.target.blur()
+    return
+  }
+  if (e.key === ' ') {
+    if (!state.nowPlaying) return
+    e.preventDefault()
+    togglePlayback()
+  } else if (e.key === '/') {
+    e.preventDefault()
+    focusSearch()
+  } else if (e.key === 'j' || e.key === 'k') {
+    e.preventDefault()
+    moveFocus(e.key === 'j' ? 1 : -1)
+  }
+})
 
 function currentTabMatches(hash) {
   const r = currentRoute()

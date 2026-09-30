@@ -29,7 +29,7 @@ function currentView() {
 
 // ---------------------------------------------------------------- playback
 
-async function playChannel(ch) {
+export async function playChannel(ch) {
   // Genre stations (shelf-*/vault-*) are MIX-ONLY on the brain: no icecast mount exists,
   // ever — /stream/<slug> 404s for them by design. They play as on-demand shuffles via
   // /api/mix, same as the station's own UI.
@@ -95,11 +95,11 @@ function albumTag(al) {
   return al.dir.startsWith('attic:') ? 'attic' : 'cd'
 }
 
-function isMix(ch) {
+export function isMix(ch) {
   return !!(ch.query && ch.query.genre)
 }
 
-function onAir(channels) {
+export function onAir(channels) {
   return channels.filter((c) => c.enabled !== 0 && c.enabled !== false)
 }
 
@@ -130,7 +130,7 @@ function fillGuideNowPlaying(listEl) {
 
 // Mix names ("From the Shelf — Blues") are too long for the fixed-width channel column —
 // every one truncated to the same prefix. Show the source there and the genre beside it.
-function mixSource(ch) {
+export function mixSource(ch) {
   if (ch.slug.startsWith('shelf-')) return 'Shelf'
   if (ch.slug.startsWith('vault-')) return 'Vault'
   return ch.name

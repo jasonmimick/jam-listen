@@ -47,7 +47,7 @@ function paint() {
   const { data, album, tracks } = cached
   const artUrl = album.artUrl
 
-  const wrap = el('div')
+  const wrap = el('div', { class: 'album-view' })
   wrap.appendChild(el('button', { class: 'back-link', onclick: () => history.back(), text: '‹ Back' }))
   wrap.appendChild(el('div', { class: 'detail-head' }, [
     artUrl ? el('img', { class: 'art', src: artUrl, alt: '' }) : el('div', { class: 'art' }),
