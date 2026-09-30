@@ -42,7 +42,7 @@ export async function playChannel(ch) {
   }
   play({
     kind: 'channel', url: `/stream/${ch.slug}`, title: ch.name,
-    channel: ch.name, art: ch.art_url || '',
+    channel: ch.name, slug: ch.slug, art: ch.art_url || '',
   })
 }
 

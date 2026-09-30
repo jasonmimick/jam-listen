@@ -8,6 +8,7 @@ import {
   audio, isPlaying, queueInfo, seek, skipNext, skipPrevious, stop, toggle as togglePlayback,
 } from '../player.js'
 import { state } from '../state.js'
+import { api } from '../api.js'
 
 export function renderPlaying(container) {
   const np = state.nowPlaying
@@ -67,6 +68,21 @@ export function renderPlaying(container) {
   ])
 
   container.replaceChildren(wrap)
+
+  // live: what's on air right now + a link to the show's public page (archive.org /
+  // phish.in) — the brain's /api/dial carries it as `source`, '' for our own files
+  if (isLive && np.slug) {
+    api.dial().then((d) => {
+      const on = d[np.slug]
+      if (!on || !document.body.contains(wrap)) return
+      const title = wrap.querySelector('.playing-title')
+      title.after(
+        el('div', { class: 'playing-link static', text: [on.title, on.artist].filter(Boolean).join(' — ') }),
+        on.album ? el('div', { class: 'playing-link static', text: on.album }) : '',
+        on.source ? el('a', { class: 'playing-link', href: on.source, target: '_blank', rel: 'noopener', text: 'source ↗' }) : '',
+      )
+    }).catch(() => {})
+  }
 
   let seeking = false
   let seekPreview = null
