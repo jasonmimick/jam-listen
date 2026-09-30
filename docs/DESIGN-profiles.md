@@ -67,6 +67,23 @@ Two stages. Stage 1 is useful on its own and doesn't depend on keyring.
   keyring is only consulted at "Save me" time. So keyring being down never breaks
   playback.
 - **"Sign out"** clears `jl_profile` on this device (a fresh anonymous profile starts).
+- **What the visitor sees.** First time: email, then a code or link to that email, then
+  optionally set a passphrase. After that, on any device: email + passphrase, no mail.
+  Keyring already supports `pin` and `passphrase` credentials
+  (`keyring/service/app/auth.py`, "user-set secrets"), so no new credential type is needed.
+
+**Decided 2026-09-29: keyring, not jam-station's passphrase.** jam-station has its own
+sign-in (magic link, passcode, passphrase — `jam-station/brain/app/auth.py`). It is the
+wrong identity for jam-listen visitors:
+
+- Its accounts are jam-station members. Signing strangers in there means creating a
+  jam-station member per visitor, which changes who can reach the shelf and private
+  streams (same reason "per-visitor brain sessions" is rejected below).
+- Its passphrase-only login (`passphrase_login_any`) finds the member by passphrase alone,
+  with no email. The code says that's fine at family scale; with open signup, two strangers
+  who choose the same passphrase would land in each other's accounts.
+- jam-station is itself listed as "planned" in keyring's `docs/CATALOG.md`. Building
+  jam-listen on jam-station's auth would add a second thing to migrate later.
 
 **Keyring change required.** Keyring today only signs in approved members; there is no
 public signup, on purpose (`keyring/service/app/auth.py`, `/api/login` —
@@ -90,6 +107,11 @@ made gate-free.
   for a forgotten PIN and a second identity system in the suite. Rejected in favour of
   keyring.
 - **Keyring sign-in required up front.** Rejected: brings back the gate.
+- **jam-station's own sign-in (passphrase).** Rejected — see "Decided" under stage 2.
+- **Keyring without email verification** (sign up with email + passphrase directly).
+  Removes the need for keyring mail and rate limits, but lets anyone claim any email, and
+  that claim would hold across the whole suite. Only acceptable if keyring can confine
+  unverified accounts to jam-listen. Kept as a fallback if open questions 1–2 stall.
 - **Per-visitor brain sessions** (mint a jam-station member per visitor, keep favourites
   on the brain). Rejected: it would fill jam-station's member table with strangers and
   change jam-station's access model for a jam-listen feature.

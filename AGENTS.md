@@ -19,6 +19,12 @@ every 30s while mounted), **crates** (station art strip + album cover grid), **l
 (the original flat rows, kept as the control). Search behaves identically in all
 three. Once a winner is clear, delete the losers — don't let three layouts calcify.
 
+**Desktop (≥1024px)** is one media query at the end of `style.css`: a sidebar with every
+station and mix (`renderSidebar` in `main.js`, always rendered, `display:none` on phones),
+a wide main column, album page as cover-left / tracks-right, full-width deck. Keyboard
+shortcuts (space, `/`, `j`/`k`, Esc) live in `main.js` and work at any width. The phone
+layout must stay unchanged — put desktop-only rules inside that media query.
+
 ## Layout
 
 ```
