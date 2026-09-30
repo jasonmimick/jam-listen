@@ -38,6 +38,7 @@ server/                backend-for-frontend — FastAPI
   app/static/iphone4.html  the SLIM player for old iPhones — one ES5 file, no build step
 docs/DESIGN-jam-listen.md   the design doc — visual system, architecture, non-goals
 docs/DESIGN-iphone4.md      the slim player: iOS 7 constraints, routing, non-goals
+docs/DESIGN-profiles.md     PROPOSED: per-visitor memory (anon cookie) + optional keyring "Save me"
 Dockerfile              multi-stage: build the Vite frontend, then run the FastAPI server
 ```
 
