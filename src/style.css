@@ -210,7 +210,7 @@ main { flex: 1; padding: 8px 12px 100px; }
 }
 .dial-tile .nm {
   margin-top: 3px; font-size: 10px; text-transform: uppercase;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
 
 .cover-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }

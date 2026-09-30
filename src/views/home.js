@@ -128,9 +128,17 @@ function fillGuideNowPlaying(listEl) {
   }
 }
 
-function guideRow(ch, sub) {
+// Mix names ("From the Shelf — Blues") are too long for the fixed-width channel column —
+// every one truncated to the same prefix. Show the source there and the genre beside it.
+function mixSource(ch) {
+  if (ch.slug.startsWith('shelf-')) return 'Shelf'
+  if (ch.slug.startsWith('vault-')) return 'Vault'
+  return ch.name
+}
+
+function guideRow(ch, sub, label = ch.name) {
   return el('button', { class: 'guide-row', 'data-slug': ch.slug, onclick: () => playChannel(ch) }, [
-    el('span', { class: 'ch', text: ch.name }),
+    el('span', { class: 'ch', text: label }),
     el('span', { class: 'np dim', text: sub }),
   ])
 }
@@ -150,7 +158,7 @@ function renderGuide(wrap, albums) {
   if (mixes.length) {
     wrap.appendChild(el('div', { class: 'section-title', text: 'Mixes' }))
     wrap.appendChild(el('div', { class: 'guide-list' },
-      mixes.map((c) => guideRow(c, `${c.query.genre} · shuffle`))))
+      mixes.map((c) => guideRow(c, `${c.query.genre} · shuffle`, mixSource(c)))))
   }
 
   const recent = albums.filter((a) => a.mtime)
@@ -169,7 +177,7 @@ function dialTile(ch) {
     ch.art_url
       ? el('img', { class: 'cv', src: ch.art_url, alt: '', loading: 'lazy' })
       : el('div', { class: 'cv', text: initials(ch.name) }),
-    el('div', { class: 'nm', text: ch.name }),
+    el('div', { class: 'nm', text: isMix(ch) ? `${mixSource(ch)} · ${ch.query.genre}` : ch.name }),
   ])
 }
 
