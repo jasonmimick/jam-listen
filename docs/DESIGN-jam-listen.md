@@ -116,6 +116,16 @@ once at boot and does search/sort/filter/artist-grouping client-side over that c
 catalogs are small enough (a personal/family record collection) that this is simpler
 and faster than round-tripping a bespoke query API.
 
+## Browse (added 2026-09-29)
+
+Home's one search box replaced the first Browse screen, and for a while that was the only
+way in: home shows a few dozen recent albums and search stops at 60 results, so the ~790
+albums (shelf + attic) couldn't be looked through at all. Jason: "I can't see how to browse
+everything." `#/browse` is back as a real view: every album A–Z by artist, a source filter
+(all / cd / attic), and a letter strip. Rows render 60 at a time as you scroll, so the
+cover-request problem that motivated the search cap doesn't come back. On desktop the rows
+flow into columns. Search is still the fast path when you know what you want.
+
 ## Non-goals
 
 - No genre/section browsing in v1 (the brain has `/api/library/genres`, unused here) —

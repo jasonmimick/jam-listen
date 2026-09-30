@@ -7,6 +7,7 @@ import { setState, state, subscribe } from './state.js'
 import { isMix, mixSource, onAir, playChannel, renderHome } from './views/home.js'
 import { refreshAlbumIfMounted, renderAlbum } from './views/album.js'
 import { renderArtist } from './views/artist.js'
+import { renderBrowse } from './views/browse.js'
 import { renderFavourites } from './views/favourites.js'
 import { renderPlaying } from './views/playing.js'
 
@@ -33,6 +34,7 @@ async function boot() {
 
 const TABS = [
   { label: 'Home', hash: '#/' },
+  { label: 'Browse', hash: '#/browse' },
   { label: 'Favourites', hash: '#/favourites' },
 ]
 
@@ -121,6 +123,7 @@ function renderSidebar() {
   const mixes = chans.filter(isMix)
   return el('aside', { class: 'sidebar' }, [
     nav('Home', '#/', 'home'),
+    nav('Browse', '#/browse', 'browse'),
     nav('Favourites', '#/favourites', 'favourites'),
     np ? nav('Now playing', '#/playing', 'playing') : null,
     el('div', { class: 'section-title', text: 'On air' }),
@@ -173,6 +176,7 @@ document.addEventListener('keydown', (e) => {
 function currentTabMatches(hash) {
   const r = currentRoute()
   if (hash === '#/') return r.name === 'home'
+  if (hash === '#/browse') return r.name === 'browse'
   if (hash === '#/favourites') return r.name === 'favourites'
   return false
 }
@@ -196,6 +200,7 @@ function renderRoute(main, isStateUpdate = false) {
   if (r.name === 'home') renderHome(main, r.params)
   else if (r.name === 'album') renderAlbum(main, r.dir)
   else if (r.name === 'artist') renderArtist(main, r.artist)
+  else if (r.name === 'browse') renderBrowse(main, r.params)
   else if (r.name === 'favourites') renderFavourites(main)
   else if (r.name === 'playing') renderPlaying(main)
 }

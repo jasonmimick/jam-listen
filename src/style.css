@@ -179,6 +179,19 @@ main { flex: 1; padding: 8px 12px 100px; }
 .view-rail { display: flex; gap: 4px; align-items: center; margin: 0 0 10px; }
 .view-rail .lbl { color: var(--dim); font-size: 11px; margin-right: 2px; }
 
+/* ── browse — every album A–Z, source filter + letter strip ─────────────── */
+
+.view-rail .count { margin-left: auto; color: var(--dim); font-size: 11px; }
+.letter-rail { margin-bottom: 10px; }
+.letter-rail .cat-pill { padding: 3px 6px; }
+.cat-pill:disabled { color: var(--line); border-color: var(--line-2); cursor: default; }
+.browse-letter { color: var(--accent); }
+.browse-list .browse-letter { margin: 12px 0 4px; }
+.browse-all { display: block; margin: 16px 0 0; color: var(--dim); font-size: 11px; }
+.browse-all::before { content: "> "; }
+.browse-all::after { content: " \2192"; }
+.browse-all:hover { color: var(--accent); }
+
 /* ── program guide — the dial as a dense table, now-playing live ────────── */
 
 .guide-list { display: flex; flex-direction: column; border-top: 1px solid var(--line-2); }
@@ -466,6 +479,14 @@ main { flex: 1; padding: 8px 12px 100px; }
   .dial-tile .cv { width: 120px; height: 120px; }
   .cover-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
   .cover-tile .t, .cover-tile .s { font-size: 12px; }
+
+  /* browse: rows flow into columns; letter headings span the full width */
+  .browse-list {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    column-gap: 24px; border-top: 0;
+  }
+  .browse-list .browse-letter { grid-column: 1 / -1; }
+  .letter-rail { flex-wrap: wrap; overflow: visible; }
 
   /* album: cover and details on the left, tracklist on the right */
   .album-view {

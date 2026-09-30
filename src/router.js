@@ -1,6 +1,7 @@
-// Hash router — no build-time route table, no history API complexity. Home now covers
-// what used to be a separate Browse screen (one category rail + one search, everywhere) —
-// #/browse still resolves, just as an alias of home, so no link ever dead-ends.
+// Hash router — no build-time route table, no history API complexity. #/browse was an
+// alias of home for a while (home's one search replaced the first Browse screen); since
+// 2026-09-29 it's a real A–Z browse again, because search alone left no way to look
+// through everything.
 
 const listeners = new Set()
 
@@ -11,6 +12,7 @@ export function currentRoute() {
   const params = new URLSearchParams(query || '')
   if (parts[0] === 'album') return { name: 'album', dir: decodeURIComponent(parts[1] || ''), params }
   if (parts[0] === 'artist') return { name: 'artist', artist: decodeURIComponent(parts[1] || ''), params }
+  if (parts[0] === 'browse') return { name: 'browse', params }
   if (parts[0] === 'favourites') return { name: 'favourites', params }
   if (parts[0] === 'playing') return { name: 'playing', params }
   return { name: 'home', params }

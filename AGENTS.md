@@ -10,7 +10,9 @@ A brand-new, separate client — not a redo of jam-station's `mobile.html` funne
 the native Session app. **Completely open — no sign-in, no auth of any kind** (Jason's
 call, 2026-08-17: it's public at jam-listen.runslab.run and free for anyone). The UI is
 one search box over everything — live stations, the shelf (CDs), the attic — merged
-into a single result list; no category pills, no separate browse or artists index.
+into a single result list, plus **Browse** (`#/browse`): every album A–Z by artist with a
+cd/attic filter and a letter strip, rendered in chunks of 60 as you scroll (never render
+the whole catalog at once — hundreds of cover requests).
 The server talks to jam-station's brain as ONE fixed member (see below).
 
 Home has THREE switchable layouts (a live A/B, `view:` rail, localStorage): **guide**
@@ -35,7 +37,7 @@ src/                  frontend — Vite + vanilla JS, no framework
   api.js               fetch wrapper for THIS app's own /api/* (never calls the brain directly)
   state.js             tiny global store — plain object + subscribers, no framework
   dom.js               el()/mount() helper — no vdom; views re-render their container wholesale
-  views/                home (the one search), album, artist, favourites, playing
+  views/                home (the one search), browse (A–Z), album, artist, favourites, playing
   style.css             the receiver-panel design system (tokens at the top)
 server/                backend-for-frontend — FastAPI
   app/config.py         BRAIN_URL, SERVICE_EMAIL, cookie name — all env-overridable

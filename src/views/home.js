@@ -61,7 +61,7 @@ function stationRow(ch) {
   ])
 }
 
-function albumRow(al, tag) {
+export function albumRow(al, tag) {
   return el('button', {
     class: 'thumb-row',
     onclick: () => navigate(`#/album/${encodeURIComponent(al.dir)}`),
@@ -86,12 +86,12 @@ function matches(text, q) {
   return (text || '').toLowerCase().includes(q)
 }
 
-function sortAlbums(albums) {
+export function sortAlbums(albums) {
   return albums.slice().sort((a, b) =>
     (a.artist || '').localeCompare(b.artist || '') || (a.album || '').localeCompare(b.album || ''))
 }
 
-function albumTag(al) {
+export function albumTag(al) {
   return al.dir.startsWith('attic:') ? 'attic' : 'cd'
 }
 
@@ -99,8 +99,11 @@ export function isMix(ch) {
   return !!(ch.query && ch.query.genre)
 }
 
+// enabled alone isn't enough — the brain also reports `playable` (false when a channel has
+// nothing it can actually stream, e.g. a leftover inbox test channel). Showing those as
+// ON AIR just meant a tap that went nowhere.
 export function onAir(channels) {
-  return channels.filter((c) => c.enabled !== 0 && c.enabled !== false)
+  return channels.filter((c) => c.enabled !== 0 && c.enabled !== false && c.playable !== false)
 }
 
 // ---------------------------------------------------------------- guide (default)
@@ -207,7 +210,7 @@ function renderCrates(wrap, albums) {
   if (albums.length > fresh.length) {
     wrap.appendChild(el('div', {
       class: 'empty',
-      text: `${albums.length - fresh.length} more in the crates — search to dig`,
+      text: `${albums.length - fresh.length} more in the crates — browse or search to dig`,
     }))
   }
 }
@@ -275,6 +278,10 @@ export function renderHome(container, params) {
     if (view === 'guide') renderGuide(wrap, albums)
     else if (view === 'crates') renderCrates(wrap, albums)
     else renderList(wrap, albums)
+    wrap.appendChild(el('button', {
+      class: 'browse-all', onclick: () => navigate('#/browse'),
+      text: `browse all ${albums.length} albums`,
+    }))
   }
 
   container.replaceChildren(wrap)
