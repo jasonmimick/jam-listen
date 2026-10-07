@@ -104,3 +104,12 @@ name). Checked out as a sibling of jam-station on the deploy host (`~/business/j
 next to `~/business/jam-station` on the mini). Push here, pull BOTH checkouts on the
 mini, then `slab -N jasons-mac-mini deploy jam-listen`. Public URL:
 https://jam-listen.runslab.run/
+
+## Station dashboard (`#/admin`)
+
+Turns live stations on/off (flips `channels.enabled` in the brain via
+`/api/admin/channel/toggle`). Gated by the `ADMIN_TOKEN` env var (slab secret on
+jam-listen), sent as `X-Admin-Token`; unset = routes 404. The rest of the app is open,
+so never proxy admin routes without that check. Each toggle makes liquidsoap restart
+(~30s blip for all streams). If every `/stream/*` 404s, check `slab-jam-radio` on the
+mini: it hung once with no log output for 3 days; `docker restart slab-jam-radio` fixes it.

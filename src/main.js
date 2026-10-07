@@ -9,6 +9,7 @@ import { refreshAlbumIfMounted, renderAlbum } from './views/album.js'
 import { renderArtist } from './views/artist.js'
 import { renderBrowse } from './views/browse.js'
 import { renderFavourites } from './views/favourites.js'
+import { renderAdmin } from './views/admin.js'
 import { renderPlaying } from './views/playing.js'
 
 // Applied before first paint, not after boot() resolves — otherwise slow catalog fetches
@@ -203,6 +204,7 @@ function renderRoute(main, isStateUpdate = false) {
   else if (r.name === 'browse') renderBrowse(main, r.params)
   else if (r.name === 'favourites') renderFavourites(main)
   else if (r.name === 'playing') renderPlaying(main)
+  else if (r.name === 'admin') renderAdmin(main)
 }
 
 function renderDeck() {

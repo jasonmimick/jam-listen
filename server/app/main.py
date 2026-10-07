@@ -73,6 +73,32 @@ for _p in ["/api/favourites/add", "/api/favourites/remove"]:
     _register_proxy_post(_p)
 
 
+# ---------------------------------------------------------------- admin: stations on/off
+
+def _require_admin(request: Request):
+    import hmac
+    sent = request.headers.get("x-admin-token", "")
+    if not config.ADMIN_TOKEN or not hmac.compare_digest(sent, config.ADMIN_TOKEN):
+        raise HTTPException(404, "not found")
+
+
+@app.get("/api/admin/channels")
+async def admin_channels(request: Request):
+    _require_admin(request)
+    r = await brain_client.call("GET", "/api/channels")
+    return JSONResponse(r.json(), status_code=r.status_code)
+
+
+@app.post("/api/admin/channel/toggle")
+async def admin_channel_toggle(request: Request):
+    """Flips channels.enabled in the brain. liquidsoap sees the changed mount list within
+    ~30s and restarts itself, so every live stream blips once per change."""
+    _require_admin(request)
+    body = await request.json()
+    r = await brain_client.call("POST", "/api/admin/channel/toggle", json=body)
+    return JSONResponse(r.json(), status_code=r.status_code)
+
+
 # ---------------------------------------------------------------- audio + art passthrough
 
 @app.get("/api/attic/cover")

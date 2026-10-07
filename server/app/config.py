@@ -15,3 +15,7 @@ BRAIN_SESSION_COOKIE = os.environ.get("BRAIN_SESSION_COOKIE", "jam_session")
 # ONE fixed jam-station member for every visitor. Must be an approved member email in
 # jam-station's own table.
 SERVICE_EMAIL = os.environ.get("SERVICE_EMAIL", "jmimick@gmail.com")
+
+# Dashboard (#/admin) token. The app is otherwise open and carries the owner's brain
+# session, so station on/off needs its own secret. Unset = dashboard disabled (404).
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")

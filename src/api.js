@@ -2,17 +2,22 @@
 // jam-station's brain. The browser never talks to the brain directly. No auth — the app
 // is open; the server carries its own brain session.
 
-async function req(method, path, body) {
+async function req(method, path, body, headers) {
   const r = await fetch(path, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: body || headers ? { ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   })
   if (!r.ok) throw new Error(`${method} ${path} -> ${r.status}`)
   return r.status === 204 ? null : r.json()
 }
 
+const adminHeaders = (token) => ({ 'X-Admin-Token': token })
+
 export const api = {
+  adminChannels: (token) => req('GET', '/api/admin/channels', null, adminHeaders(token)),
+  adminToggle: (token, slug, enabled) =>
+    req('POST', '/api/admin/channel/toggle', { slug, enabled }, adminHeaders(token)),
   channels: () => req('GET', '/api/channels'),
   libraryAlbums: () => req('GET', '/api/library/albums'),
   libraryAlbum: (dir) => req('GET', `/api/library/album?dir=${encodeURIComponent(dir)}`),

@@ -14,6 +14,7 @@ export function currentRoute() {
   if (parts[0] === 'artist') return { name: 'artist', artist: decodeURIComponent(parts[1] || ''), params }
   if (parts[0] === 'browse') return { name: 'browse', params }
   if (parts[0] === 'favourites') return { name: 'favourites', params }
+  if (parts[0] === 'admin') return { name: 'admin', params }
   if (parts[0] === 'playing') return { name: 'playing', params }
   return { name: 'home', params }
 }
