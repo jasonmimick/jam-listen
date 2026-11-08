@@ -131,7 +131,10 @@ async def _proxy_brain_track(base: str, path: str, request: Request):
     headers = {}
     if request.headers.get("range"):
         headers["range"] = request.headers["range"]
-    req = client.build_request("GET", f"{config.BRAIN_URL}{base}/{path}",
+    # path arrives decoded: re-quote it, or a folder named "Are You Experienced?" turns
+    # into a query string and the brain 404s every file in it
+    from urllib.parse import quote
+    req = client.build_request("GET", f"{config.BRAIN_URL}{base}/{quote(path)}",
                                 cookies={config.BRAIN_SESSION_COOKIE: token}, headers=headers)
     upstream = await client.send(req, stream=True)
     return _stream_response(upstream, client)
