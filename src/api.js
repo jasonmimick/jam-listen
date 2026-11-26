@@ -16,6 +16,8 @@ const adminHeaders = (token) => ({ 'X-Admin-Token': token })
 
 export const api = {
   adminChannels: (token) => req('GET', '/api/admin/channels', null, adminHeaders(token)),
+  adminUsage: (token, days) => req('GET', `/api/admin/usage?days=${days}`, null, adminHeaders(token)),
+  presence: (channel, aid) => req('POST', '/api/presence', { channel, aid }),
   adminToggle: (token, slug, enabled) =>
     req('POST', '/api/admin/channel/toggle', { slug, enabled }, adminHeaders(token)),
   channels: () => req('GET', '/api/channels'),

@@ -7,6 +7,7 @@
 //    so staying off that graph is what makes lock-screen/AirPods playback reliable.
 // 2. Auto-recover from stalls/drops. A dead stream must fix itself, not sit silent.
 
+import { api } from './api.js'
 import { setState, state } from './state.js'
 
 const audio = new Audio()
@@ -202,5 +203,32 @@ export function setEqBand(index, db) {
   if (!eq) return
   eq.filters[index].gain.value = db
 }
+
+// ---------------------------------------------------------------- usage heartbeat
+// On-demand plays (albums, mixes, favourites) tell the brain every 30 s that they're
+// still playing, so they show up in the usage report. Live channels need none — the
+// open /stream connection is the session. See jam-station docs/DESIGN-usage-reports.md.
+
+const AID_KEY = 'jl-aid'
+function aid() {
+  try {
+    let a = localStorage.getItem(AID_KEY)
+    if (!a) { a = Math.random().toString(36).slice(2, 14); localStorage.setItem(AID_KEY, a) }
+    return a
+  } catch { return '' }
+}
+
+function usageLabel(np) {
+  if (np.slug) return np.slug                         // a mix station
+  if (np.album) return `album/${np.artist ? np.artist + ' - ' : ''}${np.album}`
+  if (np.artist) return `artist/${np.artist}`
+  return 'favourites'
+}
+
+setInterval(() => {
+  const np = state.nowPlaying
+  if (!np || np.kind === 'channel' || audio.paused) return
+  api.presence(usageLabel(np), aid()).catch(() => {})
+}, 30000)
 
 export { audio }

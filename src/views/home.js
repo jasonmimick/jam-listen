@@ -36,7 +36,7 @@ export async function playChannel(ch) {
   if (ch.query && ch.query.genre) {
     try {
       const mix = await api.channelMix(ch.slug)
-      playQueue(mix.tracks, 0, { channel: ch.name, art: ch.art_url || '' })
+      playQueue(mix.tracks, 0, { channel: ch.name, slug: ch.slug, art: ch.art_url || '' })
     } catch (e) { /* an empty section — nothing to play */ }
     return
   }

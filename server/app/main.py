@@ -99,6 +99,32 @@ async def admin_channel_toggle(request: Request):
     return JSONResponse(r.json(), status_code=r.status_code)
 
 
+@app.get("/api/admin/usage")
+async def admin_usage(request: Request, days: int = 30):
+    """Listening report from the brain (jam-station docs/DESIGN-usage-reports.md)."""
+    _require_admin(request)
+    r = await brain_client.call("GET", f"/api/admin/usage?days={int(days)}")
+    return JSONResponse(r.json(), status_code=r.status_code)
+
+
+# ---------------------------------------------------------------- usage: who's playing what
+
+def _client_tag(request: Request) -> str:
+    """How the brain's usage log names us. The slim player is its own app."""
+    return "jam-listen-iphone" if _OLD_IOS.search(request.headers.get("user-agent", "")) else "jam-listen"
+
+
+@app.post("/api/presence")
+async def presence_beat(request: Request):
+    """On-demand heartbeat (albums, mixes), every 30 s while playing. Radio needs none:
+    the open /stream connection is the session. All visitors share one brain session,
+    so `aid` (a per-browser id) is what keeps two of them apart."""
+    body = await request.json()
+    beat = {"channel": str(body.get("channel", ""))[:80], "aid": str(body.get("aid", ""))[:24]}
+    r = await brain_client.call("POST", f"/api/presence?client={_client_tag(request)}", json=beat)
+    return JSONResponse(r.json(), status_code=r.status_code)
+
+
 # ---------------------------------------------------------------- audio + art passthrough
 
 @app.get("/api/attic/cover")
@@ -153,7 +179,7 @@ async def proxy_attic_file(path: str, request: Request):
 
 
 @app.get("/stream/{slug}")
-async def proxy_stream(slug: str):
+async def proxy_stream(slug: str, request: Request):
     """Live icecast relay. Private channels need the brain's cookie (it 403s without
     one); public ones don't, but routing everything through here keeps the brain's URL
     out of the browser either way."""
@@ -161,7 +187,8 @@ async def proxy_stream(slug: str):
     import httpx
     client = httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None))
     cookies = {config.BRAIN_SESSION_COOKIE: token} if token else {}
-    req = client.build_request("GET", f"{config.BRAIN_URL}/stream/{slug}", cookies=cookies)
+    req = client.build_request("GET", f"{config.BRAIN_URL}/stream/{slug}",
+                               params={"client": _client_tag(request)}, cookies=cookies)
     upstream = await client.send(req, stream=True)
     return _stream_response(upstream, client)
 
