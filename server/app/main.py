@@ -103,7 +103,10 @@ async def admin_channel_toggle(request: Request):
 async def admin_usage(request: Request, days: int = 30):
     """Listening report from the brain (jam-station docs/DESIGN-usage-reports.md)."""
     _require_admin(request)
-    r = await brain_client.call("GET", f"/api/admin/usage?days={int(days)}")
+    import httpx
+    async with httpx.AsyncClient(timeout=20) as client:   # host-only route, no session needed
+        r = await client.get(f"{config.BRAIN_URL}/api/internal/usage", params={"days": int(days)},
+                             headers={"Host": config.BRAIN_INTERNAL_HOST})
     return JSONResponse(r.json(), status_code=r.status_code)
 
 
